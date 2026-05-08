@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from scipy.integrate import solve_ivp
 
 from core.export import build_pdf_report
-from utils.ui import explain, section, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def lotka_volterra_system(_t: float, state: list[float], alpha: float, beta: float, delta: float, gamma: float) -> list[float]:
@@ -44,6 +45,11 @@ def render(context: dict) -> None:
         "Lotka-Volterra",
         "Exemple : petits passereaux granivores et rapaces spécialisés dans une mosaïque agricole.",
     )
+    module_intro(
+        "Le modèle de Lotka-Volterra décrit les interactions cycliques entre une population de proies et une population de prédateurs.",
+        "Il sert à comprendre comment la prédation peut produire des oscillations, des retards de réponse et des équilibres dynamiques.",
+        "En ornithologie, il aide à explorer les relations entre oiseaux proies et rapaces, ou entre oiseaux insectivores et ressources alimentaires saisonnières.",
+    )
     left, right = st.columns([0.85, 1.55])
     with left:
         prey0 = st.slider("Proies initiales", 10, 1000, 320)
@@ -55,15 +61,19 @@ def render(context: dict) -> None:
         duration = st.slider("Durée", 10, 120, 55)
 
     t, prey, predator = simulate(prey0, predator0, alpha, beta, delta, gamma, duration)
+    results = pd.DataFrame({"Temps": t, "Proies": prey, "Prédateurs": predator})
 
     with right:
         fig = go.Figure()
-        fig.add_scatter(x=t, y=prey, name="Proies", mode="lines")
-        fig.add_scatter(x=t, y=predator, name="Prédateurs", mode="lines")
+        fig.add_scatter(x=t, y=prey, name="Proies", mode="lines", line={"width": 3})
+        fig.add_scatter(x=t, y=predator, name="Prédateurs", mode="lines", line={"width": 3})
         fig.update_layout(xaxis_title="Temps", yaxis_title="Effectif", hovermode="x unified")
+        style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     phase = px.line(x=prey, y=predator, labels={"x": "Proies", "y": "Prédateurs"}, title="Portrait de phase")
+    phase.update_traces(line={"width": 3})
+    style_figure(phase)
     st.plotly_chart(phase, use_container_width=True)
 
     prey_eq = gamma / delta
@@ -71,6 +81,11 @@ def render(context: dict) -> None:
     explain(
         f"L'équilibre théorique se situe autour de {prey_eq:.0f} proies et {predator_eq:.0f} prédateurs. "
         "Les oscillations montrent un décalage temporel : les prédateurs augmentent après les proies."
+    )
+    learning_notes(
+        "Les interactions proie-prédateur peuvent créer des cycles avec retard temporel.",
+        "Le modèle ne contient ni saisonnalité, ni capacité de charge, ni comportements de refuge.",
+        "Augmente la mortalité des prédateurs et observe l'effet sur l'amplitude des cycles.",
     )
     teacher_note(
         "Le modèle est volontairement simple : il ne contient ni capacité de charge, ni saisonnalité, "
@@ -89,3 +104,4 @@ def render(context: dict) -> None:
     )
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_lotka_volterra.pdf", "application/pdf")
+    st.download_button("Exporter les données CSV", results.to_csv(index=False).encode("utf-8"), "orni_lab_lotka_volterra.csv", "text/csv")

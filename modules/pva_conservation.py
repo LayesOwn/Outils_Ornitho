@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import plotly.express as px
+import streamlit as st
+
+from core.export import build_pdf_report
+from simulations.pva_engine import simulate_pva, summarize_pva
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+
+
+def render(context: dict) -> None:
+    section("PVA et conservation", "Analyse de viabilité de population avec incertitude environnementale.")
+    module_intro(
+        "Une PVA simule de nombreuses trajectoires possibles d'une population afin d'estimer son risque de quasi-extinction.",
+        "Elle sert à comparer des scénarios de conservation quand l'avenir est incertain : démographie, habitat, mortalité ou climat.",
+        "En ornithologie de conservation, elle aide à prioriser les actions pour les espèces menacées, colonies isolées ou populations réintroduites.",
+    )
+
+    left, right = st.columns([0.9, 1.55])
+    with left:
+        n0 = st.slider("Effectif initial", 10, 2000, 180)
+        mean_r = st.slider("Croissance moyenne r", -0.25, 0.35, 0.04, step=0.01)
+        sd_r = st.slider("Variabilité environnementale", 0.0, 0.30, 0.09, step=0.01)
+        k = st.slider("Capacité de charge", 50, 5000, 900, step=50)
+        threshold = st.slider("Seuil de quasi-extinction", 1, 200, 25)
+        loss = st.slider("Pertes annuelles fixes", 0, 100, 6)
+        years = st.slider("Horizon", 10, 100, 50)
+        iterations = st.slider("Nombre de simulations", 50, 1000, 250, step=50)
+        seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=42)
+
+    data = simulate_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, int(seed))
+    summary = summarize_pva(data, threshold)
+    yearly = data.groupby("annee")["effectif"].quantile([0.05, 0.5, 0.95]).unstack().reset_index()
+    yearly.columns = ["Année", "P05", "Médiane", "P95"]
+
+    with right:
+        fig = px.line(yearly, x="Année", y=["P05", "Médiane", "P95"], labels={"value": "Effectif", "variable": "Quantile"})
+        fig.add_hline(y=threshold, line_dash="dot", annotation_text="Seuil")
+        fig.update_traces(line={"width": 3})
+        style_figure(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Risque quasi-extinction", f"{100 * summary['risk']:.1f} %")
+    c2.metric("Médiane finale", f"{summary['median_final']:.0f}")
+    c3.metric("Moyenne finale", f"{summary['mean_final']:.0f}")
+    level = "élevé" if summary["risk"] > 0.3 else "modéré" if summary["risk"] > 0.1 else "faible"
+    explain(f"Le risque estimé est {level} : {100 * summary['risk']:.1f} % des trajectoires atteignent le seuil de quasi-extinction.")
+    teacher_note("Cette PVA est pédagogique : elle ne remplace pas un modèle démographique calibré avec données de survie, fécondité et dispersion.", context)
+    learning_notes(
+        "Le risque dépend autant de la variance que de la croissance moyenne.",
+        "Une PVA simplifiée peut sous-estimer les événements rares, la consanguinité ou les catastrophes.",
+        "Teste l'effet d'une baisse des pertes annuelles fixes sur le risque.",
+    )
+
+    st.download_button("Exporter les trajectoires CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_pva.csv", "text/csv")
+    pdf = build_pdf_report(
+        "ORNI-LAB - PVA et conservation",
+        [f"Risque = {100 * summary['risk']:.1f} %. Médiane finale = {summary['median_final']:.0f}. Paramètres : N0={n0}, r={mean_r:.2f}, sd={sd_r:.2f}, K={k}."],
+    )
+    if pdf:
+        st.download_button("Exporter le résumé PDF", pdf, "orni_lab_pva.pdf", "application/pdf")

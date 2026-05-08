@@ -7,13 +7,18 @@ from scipy import stats
 
 from core.export import build_pdf_report
 from data.examples import wing_mass_dataset
-from utils.ui import explain, section, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def render(context: dict) -> None:
     section(
         "Corrélation et régression",
         "Exemple : relation entre longueur de l'aile et masse corporelle chez des passereaux.",
+    )
+    module_intro(
+        "La corrélation mesure l'intensité d'une relation entre deux variables. La régression estime une équation permettant de prédire une variable à partir d'une autre.",
+        "Ces outils servent à tester une relation biologique, quantifier sa force et produire une prédiction avec une incertitude.",
+        "En ornithologie, ils permettent d'étudier les liens entre morphologie, condition corporelle, climat, habitat, abondance ou succès reproducteur.",
     )
     left, right = st.columns([0.85, 1.6])
     with left:
@@ -40,6 +45,7 @@ def render(context: dict) -> None:
             y=data["Masse corporelle (g)"],
             mode="markers",
             name="Observations",
+            marker={"size": 10, "line": {"width": 1, "color": "#ffffff"}},
             text=[f"Prédiction : {value:.1f} g" for value in data["Prédiction"]],
             hovertemplate="Aile: %{x:.1f} mm<br>Masse: %{y:.1f} g<br>%{text}<extra></extra>",
         )
@@ -48,12 +54,14 @@ def render(context: dict) -> None:
             y=sorted_data["Prédiction"],
             mode="lines",
             name="Régression linéaire",
+            line={"width": 3},
         )
         fig.update_layout(
             xaxis_title="Longueur de l'aile (mm)",
             yaxis_title="Masse corporelle (g)",
             hovermode="closest",
         )
+        style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     c1, c2, c3 = st.columns(3)
@@ -67,6 +75,11 @@ def render(context: dict) -> None:
         f"est associé à environ {slope:.2f} g de masse en plus. "
         f"Le modèle explique {100 * r_value**2:.1f} % de la variation observée."
     )
+    learning_notes(
+        "R² indique la proportion de variation expliquée par le modèle linéaire.",
+        "Une corrélation ne prouve pas une causalité et peut être influencée par des variables cachées.",
+        "Augmente la variabilité individuelle et observe l'effet sur R² et la p-value.",
+    )
     teacher_note(
         f"Équation ajustée : masse = {intercept:.2f} + {slope:.2f} × aile. "
         "Faire distinguer corrélation, causalité et qualité prédictive.",
@@ -75,6 +88,7 @@ def render(context: dict) -> None:
 
     with st.expander("Voir les données"):
         st.dataframe(data, use_container_width=True)
+    st.download_button("Exporter les données CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_regression.csv", "text/csv")
 
     pdf = build_pdf_report(
         "ORNI-LAB - Corrélation et régression",

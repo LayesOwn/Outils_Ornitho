@@ -4,11 +4,15 @@ Plateforme pédagogique scientifique interactive pour étudiants de Master en Or
 
 ORNI-LAB propose des simulateurs Streamlit pour explorer des concepts quantitatifs en écologie des oiseaux :
 
+- statistiques descriptives ;
 - croissance exponentielle et logistique ;
 - matrices de Leslie ;
 - corrélation et régression ;
 - capture-marquage-recapture ;
-- modèle prédateur-proie de Lotka-Volterra.
+- modèle prédateur-proie de Lotka-Volterra ;
+- tests statistiques ;
+- PVA et conservation ;
+- scénarios de gestion.
 
 ## Installation
 
@@ -37,7 +41,11 @@ streamlit run app.py
 │   ├── leslie.py
 │   ├── regression.py
 │   ├── cmr.py
-│   └── lotka_volterra.py
+│   ├── lotka_volterra.py
+│   ├── descriptive_stats.py
+│   ├── statistical_tests.py
+│   ├── pva_conservation.py
+│   └── management_scenarios.py
 ├── core/
 │   └── export.py
 ├── data/
@@ -49,6 +57,7 @@ streamlit run app.py
 ├── utils/
 │   └── ui.py
 ├── models/
+│   └── ai_tutor.py
 ├── exports/
 ├── notebooks/
 └── tests/
@@ -65,3 +74,10 @@ Cette organisation permet d’ajouter facilement de futurs modules, y compris un
 ## Export PDF
 
 Les modules génèrent un résumé exportable en PDF depuis l’interface. L’export utilise `reportlab`.
+Plusieurs modules permettent aussi d’exporter les données simulées en CSV.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests
+```

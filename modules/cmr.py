@@ -7,7 +7,7 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import CMR_SCENARIOS
-from utils.ui import explain, section, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def lincoln_petersen(marked: int, captured: int, recaptured: int) -> tuple[float, float, float]:
@@ -28,6 +28,11 @@ def render(context: dict) -> None:
         "Capture-Marquage-Recapture",
         "Estimateur de Lincoln-Petersen avec correction de Chapman.",
     )
+    module_intro(
+        "La capture-marquage-recapture estime la taille d'une population à partir du nombre d'individus marqués puis retrouvés lors d'une seconde capture.",
+        "Elle est utilisée quand il est impossible de compter tous les individus directement, notamment dans des populations mobiles ou partiellement détectables.",
+        "Pour les oiseaux, elle sert à estimer l'abondance, la survie apparente, la fidélité au site et la dynamique de populations baguées.",
+    )
     scenario_name = st.selectbox("Exemple ornithologique", list(CMR_SCENARIOS.keys()))
     scenario = CMR_SCENARIOS[scenario_name]
 
@@ -40,7 +45,11 @@ def render(context: dict) -> None:
     estimate, low, high = lincoln_petersen(marked, captured, recaptured)
     with col2:
         fig = go.Figure()
-        fig.add_bar(x=["M", "C", "R", "N estimé"], y=[marked, captured, recaptured, estimate])
+        fig.add_bar(
+            x=["M", "C", "R", "N estimé"],
+            y=[marked, captured, recaptured, estimate],
+            marker_color=["#39d98a", "#4dabf7", "#ff6b6b", "#ffd166"],
+        )
         fig.add_trace(
             go.Scatter(
                 x=["N estimé", "N estimé"],
@@ -50,6 +59,7 @@ def render(context: dict) -> None:
             )
         )
         fig.update_layout(yaxis_title="Nombre d'individus", showlegend=True)
+        style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     recapture_rate = recaptured / captured
@@ -57,6 +67,11 @@ def render(context: dict) -> None:
     explain(
         f"Le taux de recapture est de {100 * recapture_rate:.1f} %. "
         f"Un faible nombre de recaptures élargit l'incertitude et peut rendre l'estimation instable."
+    )
+    learning_notes(
+        "Plus le taux de recapture est élevé, plus l'estimation est précise.",
+        "La méthode est sensible à la perte de marques, aux migrations et aux captures non homogènes.",
+        "Diminue R et observe comment l'intervalle de confiance s'élargit.",
     )
     teacher_note(
         "Hypothèses clés : population fermée, mélange homogène, marques non perdues, probabilités de capture similaires.",

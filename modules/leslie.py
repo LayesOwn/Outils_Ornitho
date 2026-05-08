@@ -7,7 +7,7 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import default_leslie_values
-from utils.ui import explain, section, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def build_leslie_matrix(fecundity: list[float], survival: list[float]) -> np.ndarray:
@@ -32,6 +32,11 @@ def render(context: dict) -> None:
     section(
         "Matrices de Leslie",
         "Exemple : projection d'une population femelle structurée par âge.",
+    )
+    module_intro(
+        "Une matrice de Leslie projette une population divisée en classes d'âge à partir des fécondités et des probabilités de survie.",
+        "Elle permet d'identifier les classes d'âge qui contribuent le plus à la croissance ou au déclin d'une population.",
+        "Elle est utile pour les espèces d'oiseaux suivies par âge, par exemple pour évaluer si la conservation doit cibler la survie juvénile, adulte ou le succès reproducteur.",
     )
     fecundity, survival, initial = default_leslie_values()
     left, right = st.columns([1, 1.5])
@@ -62,12 +67,19 @@ def render(context: dict) -> None:
             y=["Juvéniles", "1 an", "2 ans", "3 ans et +", "Total"],
             labels={"value": "Effectif", "variable": "Classe"},
         )
+        fig.update_traces(line={"width": 3})
+        style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     trend = "croissante" if lambda_dom > 1 else "déclinante" if lambda_dom < 1 else "stable"
     explain(
         f"La valeur propre dominante λ = {lambda_dom:.3f}. "
         f"La population projetée est donc {trend} à long terme."
+    )
+    learning_notes(
+        "λ > 1 indique une croissance asymptotique ; λ < 1 indique un déclin.",
+        "Le modèle suppose des fécondités et survies constantes dans le temps.",
+        "Réduis la survie juvénile puis la survie adulte : quelle classe change le plus λ ?",
     )
     teacher_note(
         "Discussion : λ résume la croissance asymptotique, mais la trajectoire initiale dépend fortement "
@@ -86,3 +98,4 @@ def render(context: dict) -> None:
     )
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_leslie.pdf", "application/pdf")
+    st.download_button("Exporter la projection CSV", projection.to_csv(index=False).encode("utf-8"), "orni_lab_leslie.csv", "text/csv")
