@@ -17,7 +17,7 @@ from modules.csv_analysis import (
 from modules.diversity import accumulation_curve, compute_diversity_indices, simulate_community
 from modules.distance_sampling import fit_half_normal, simulate_distances
 from modules.growth import simulate_growth
-from modules.leslie import build_leslie_matrix
+from modules.leslie import build_leslie_matrix, compute_demography
 from modules.occupancy import fit_occupancy, simulate_detection_history
 from modules.timeseries_population import mann_kendall_test, simulate_population_series
 from simulations.pva_engine import project_next_population, simulate_pva, summarize_pva
@@ -48,6 +48,20 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(np.allclose(matrix[0], [0, 1.2, 0.8]))
         self.assertEqual(matrix[1, 0], 0.4)
         self.assertEqual(matrix[2, 1], 0.6)
+
+    def test_leslie_validation_rejects_inconsistent_lengths(self) -> None:
+        with self.assertRaises(ValueError):
+            build_leslie_matrix([0, 1.2, 0.8], [0.4])  # 3 fecundities needs 2 survivals
+
+    def test_leslie_sensitivity_elasticity(self) -> None:
+        matrix = build_leslie_matrix([0, 0.7, 1.2, 0.8], [0.38, 0.62, 0.55])
+        demo = compute_demography(matrix)
+        self.assertGreater(demo["lambda"], 0)
+        self.assertAlmostEqual(demo["stable_age"].sum(), 1.0, places=5)
+        self.assertAlmostEqual(float(demo["repro_values"][0]), 1.0, places=5)
+        # Elasticities of non-zero elements should sum to 1
+        elas_sum = float(np.sum(demo["elasticity"][matrix > 0]))
+        self.assertAlmostEqual(elas_sum, 1.0, delta=0.01)
 
     def test_cmr_estimate_positive(self) -> None:
         estimate, low, high = lincoln_petersen(180, 140, 42)

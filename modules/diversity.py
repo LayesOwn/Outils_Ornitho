@@ -7,7 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure
 
 
 def compute_diversity_indices(counts: np.ndarray) -> dict[str, float]:
@@ -60,6 +60,7 @@ def simulate_community(n_sites: int, n_species: int, mean_abundance: float, seed
 
 
 def render(context: dict) -> None:
+    is_data = context.get("data") is not None
     section("Richesse spécifique et diversité", "Comparer la diversité d'oiseaux entre habitats.")
     module_intro(
         "Les indices de diversité résument la richesse (nombre d'espèces) et l'équitabilité (répartition des abondances) d'une communauté.",
@@ -77,6 +78,10 @@ def render(context: dict) -> None:
             st.warning("Le fichier doit contenir au moins 2 colonnes numériques (une par espèce).")
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Habitat": ["Forêt", "Savane", "Zone humide"], "Esp01": [5, 2, 8], "Esp02": [3, 4, 1], "Esp03": [0, 3, 6], "Esp04": [2, 1, 4]}),
+                "template_diversite.csv",
+            )
             st.markdown("**Format attendu : une colonne par espèce (largeur), une ligne par site.**")
             species_cols = st.multiselect(
                 "Colonnes espèces", numeric_cols,
@@ -104,10 +109,8 @@ def render(context: dict) -> None:
         species_matrix = data[species_cols].values
 
     indices_rows = []
-    for hab in ["Forêt", "Savane", "Zone humide", "Agroécosystème"]:
+    for hab in data["Habitat"].unique():
         mask = data["Habitat"] == hab
-        if mask.sum() == 0:
-            continue
         pooled = species_matrix[mask].sum(axis=0)
         idx = compute_diversity_indices(pooled)
         idx["Habitat"] = hab
@@ -148,7 +151,8 @@ def render(context: dict) -> None:
         )
 
     with tabs[1]:
-        acc = accumulation_curve(species_matrix, iterations=200, seed=int(seed))
+        acc_seed = int(seed) if not is_data else 1
+        acc = accumulation_curve(species_matrix, iterations=200, seed=acc_seed)
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(
             x=np.concatenate([acc["Sites"], acc["Sites"].values[::-1]]),
@@ -177,10 +181,10 @@ def render(context: dict) -> None:
             "orni_lab_diversite.csv",
             "text/csv",
         )
+        sim_lines = [f"Sites = {n_sites}. Pool régional = {n_species} espèces."] if not is_data else [f"Sites = {len(data)}. Espèces = {len(species_cols)}."]
         pdf = build_pdf_report(
             "ORNI-LAB - Richesse spécifique et diversité",
-            [f"Sites = {n_sites}. Pool régional = {n_species} espèces."]
-            + [f"{hab}: S={row['S']}, H'={row['H']:.3f}, J={row['J']:.3f}." for hab, row in indices_df.iterrows()],
+            sim_lines + [f"{hab}: S={row['S']}, H'={row['H']:.3f}, J={row['J']:.3f}." for hab, row in indices_df.iterrows()],
         )
         if pdf:
             st.download_button("Exporter le résumé PDF", pdf, "orni_lab_diversite.pdf", "application/pdf")
@@ -188,5 +192,5 @@ def render(context: dict) -> None:
     learning_notes(
         "Shannon H' combine richesse et équitabilité ; une communauté dominée par une seule espèce a un H' bas.",
         "Les indices dépendent de l'effort d'échantillonnage ; comparer uniquement des communautés collectées avec le même protocole.",
-        "Réduis le nombre de sites : à partir de combien la richesse estimée se stabilise-t-elle sur la courbe d'accumulation ?",
+        None if is_data else "Réduis le nombre de sites : à partir de combien la richesse estimée se stabilise-t-elle sur la courbe d'accumulation ?",
     )

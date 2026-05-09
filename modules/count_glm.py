@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 _HABITATS = ["Forêt", "Savane", "Zone humide", "Agroécosystème"]
 _HAB_EFFECTS = {"Forêt": 1.4, "Savane": 0.8, "Zone humide": 1.8, "Agroécosystème": 0.5}
@@ -66,16 +66,21 @@ def _fit_glm(data: pd.DataFrame, family_name: str) -> dict:
             "IC 97.5 %": np.exp(ci.iloc[:, 1]).round(3),
             "p-value": result.pvalues.round(4),
         })
+        pearson_resid = result.resid_pearson if hasattr(result, "resid_pearson") else None
+        fitted = result.fittedvalues.values if hasattr(result, "fittedvalues") else None
         return {
             "coef_table": coef_table,
             "aic": round(float(result.aic), 1),
             "overdispersion": overdispersion_ratio,
+            "pearson_resid": pearson_resid,
+            "fitted": fitted,
         }
     except Exception as exc:
         return {"error": f"Échec d'ajustement ({family_name}) : {exc}"}
 
 
 def render(context: dict) -> None:
+    is_data = context.get("data") is not None
     section("GLM pour données de comptage", "Poisson et binomial négatif avec habitat, tendance et effort.")
     module_intro(
         "Un GLM de Poisson modélise des comptages entiers en supposant que la variance égale la moyenne. Quand la variance la dépasse (surdispersion), le binomial négatif est plus adapté.",
@@ -93,6 +98,10 @@ def render(context: dict) -> None:
             st.warning("Le fichier ne contient pas de colonne numérique exploitable.")
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Abondance": [12, 5, 23, 0, 8, 17], "Habitat": ["Forêt", "Savane", "Zone humide", "Agroéco", "Forêt", "Zone humide"], "Annee": [2018, 2018, 2019, 2019, 2020, 2020], "Effort": [2, 1, 3, 1, 2, 4]}),
+                "template_glm_comptage.csv",
+            )
             abond_col = st.selectbox("Colonne abondance (comptage)", numeric_cols)
             hab_col = st.selectbox("Colonne habitat (optionnel)", ["—"] + cat_cols)
             year_col = st.selectbox("Colonne année (optionnel)", ["—"] + numeric_cols)
@@ -130,7 +139,7 @@ def render(context: dict) -> None:
         st.error(poisson_res["error"])
         return
 
-    tabs = st.tabs(["Poisson", "Binomial négatif", "Comparaison", "Export"])
+    tabs = st.tabs(["Poisson", "Binomial négatif", "Comparaison", "Diagnostics résidus", "Export"])
 
     with tabs[0]:
         disp = poisson_res["overdispersion"]
@@ -169,12 +178,85 @@ def render(context: dict) -> None:
             best = "Poisson" if poisson_res["aic"] <= nb_res["aic"] else "Binomial négatif"
             explain(f"Le modèle le mieux ajusté selon l'AIC est le {best}.")
 
-    with tabs[3]:
+    with tabs[3]:  # Diagnostics résidus
+        import plotly.graph_objects as go
+        from scipy import stats as _stats
+        st.markdown("#### Diagnostics du modèle Poisson")
+        st.caption(
+            "Ces graphiques vérifient les hypothèses du GLM : "
+            "homoscédasticité des résidus, absence de structure résiduelle, et normalité approximative."
+        )
+        pr = poisson_res.get("pearson_resid")
+        ft = poisson_res.get("fitted")
+        if pr is not None and ft is not None:
+            pr = np.array(pr)
+            ft = np.array(ft)
+            d1, d2 = st.columns(2)
+            with d1:
+                fig_rf = go.Figure()
+                fig_rf.add_scatter(
+                    x=ft, y=pr, mode="markers",
+                    marker={"size": 5, "color": "#4dabf7", "opacity": 0.6},
+                    name="Résidus",
+                )
+                fig_rf.add_hline(y=0, line_dash="dash", line_color="#39d98a")
+                fig_rf.add_hline(y=2, line_dash="dot", line_color="#ff6b6b")
+                fig_rf.add_hline(y=-2, line_dash="dot", line_color="#ff6b6b")
+                fig_rf.update_layout(
+                    xaxis_title="Valeurs ajustées",
+                    yaxis_title="Résidus de Pearson",
+                    title={"text": "Résidus vs valeurs ajustées", "font": {"size": 13}},
+                    height=300,
+                )
+                style_figure(fig_rf)
+                st.plotly_chart(fig_rf, use_container_width=True)
+                pct_out = float(np.mean(np.abs(pr) > 2) * 100)
+                if pct_out > 5:
+                    st.warning(f"{pct_out:.1f} % des résidus ont |r| > 2 (attendu ≤ 5 %). Le modèle Poisson sous-ajuste probablement — envisagez le binomial négatif.")
+                else:
+                    st.success(f"Seulement {pct_out:.1f} % des résidus hors ±2. Ajustement satisfaisant.")
+            with d2:
+                (osm, osr), (slope, intercept, _) = _stats.probplot(pr)
+                fig_qq = go.Figure()
+                fig_qq.add_scatter(
+                    x=osm, y=osr, mode="markers",
+                    marker={"size": 5, "color": "#4dabf7", "opacity": 0.6},
+                    name="Résidus",
+                )
+                x_line = np.array([min(osm), max(osm)])
+                fig_qq.add_scatter(
+                    x=x_line, y=slope * x_line + intercept,
+                    mode="lines", line={"dash": "dash", "color": "#39d98a", "width": 2},
+                    name="Référence",
+                )
+                fig_qq.update_layout(
+                    xaxis_title="Quantiles théoriques (N(0,1))",
+                    yaxis_title="Résidus de Pearson",
+                    title={"text": "Q-Q des résidus de Pearson", "font": {"size": 13}},
+                    height=300,
+                )
+                style_figure(fig_qq)
+                st.plotly_chart(fig_qq, use_container_width=True)
+
+            disp = poisson_res["overdispersion"]
+            if not np.isnan(disp):
+                st.metric("Ratio surdispersion Pearson/df", f"{disp:.3f}", help="Idéalement proche de 1. > 2 : surdispersion marquée.")
+        else:
+            st.info("Diagnostics de résidus non disponibles pour ce modèle.")
+        teacher_note(
+            "Les résidus de Pearson sont définis comme (y_i − μ̂_i) / √(V(μ̂_i)). "
+            "Un ratio Pearson/df >> 1 indique de la surdispersion : le modèle Poisson sous-estime la variance. "
+            "Le Q-Q plot des résidus teste approximativement la normalité asymptotique des résidus.",
+            context,
+        )
+
+    with tabs[4]:  # Export
         st.download_button("Exporter les données CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_glm.csv", "text/csv")
-        lines = [
-            f"Sites/an = {n_sites}, annees = {n_years}, surdispersion simulee = {overdispersion:.1f}.",
-            f"Poisson AIC = {poisson_res['aic']}, Pearson/df = {poisson_res['overdispersion']:.2f}.",
-        ]
+        if is_data:
+            lines = [f"Donnees terrain : {len(data)} observations."]
+        else:
+            lines = [f"Sites/an = {n_sites}, annees = {n_years}, surdispersion simulee = {overdispersion:.1f}."]
+        lines.append(f"Poisson AIC = {poisson_res['aic']}, Pearson/df = {poisson_res['overdispersion']:.2f}.")
         if "error" not in nb_res:
             lines.append(f"Binomial negatif AIC = {nb_res['aic']}.")
         pdf = build_pdf_report("ORNI-LAB - GLM de comptage", lines)
@@ -190,5 +272,5 @@ def render(context: dict) -> None:
     learning_notes(
         "L'AIC compare les modèles : plus il est bas, meilleur est l'ajustement pénalisé par la complexité.",
         "Un GLM ne remplace pas un bon protocole : biais de détection, sites non indépendants et effort variable doivent être justifiés.",
-        "Mets la tendance à -0.10 et observe comment l'IRR de l'année reflète ce déclin.",
+        None if is_data else "Mets la tendance à -0.10 et observe comment l'IRR de l'année reflète ce déclin.",
     )

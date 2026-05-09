@@ -295,6 +295,19 @@ def section(title: str, caption: str | None = None) -> None:
         st.caption(caption)
 
 
+def csv_template_button(df: "pd.DataFrame", filename: str) -> None:
+    with st.expander("Format de fichier attendu", expanded=False):
+        st.caption("Exemple de structure CSV compatible avec ce module :")
+        st.dataframe(df, use_container_width=True)
+        st.download_button(
+            "Télécharger exemple CSV",
+            df.to_csv(index=False).encode("utf-8"),
+            filename,
+            "text/csv",
+            key=f"tpl_{filename}",
+        )
+
+
 def module_intro(what: str, why: str, ornithology: str) -> None:
     st.markdown(
         f"""
@@ -317,14 +330,21 @@ def module_intro(what: str, why: str, ornithology: str) -> None:
     )
 
 
-def learning_notes(takeaway: str, limits: str, exercise: str) -> None:
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"**À retenir.** {takeaway}")
-    with col2:
-        st.markdown(f"**Limites.** {limits}")
-    with col3:
-        st.markdown(f"**Mini-exercice.** {exercise}")
+def learning_notes(takeaway: str, limits: str, exercise: str | None = None) -> None:
+    if exercise is None:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**À retenir.** {takeaway}")
+        with col2:
+            st.markdown(f"**Limites.** {limits}")
+    else:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**À retenir.** {takeaway}")
+        with col2:
+            st.markdown(f"**Limites.** {limits}")
+        with col3:
+            st.markdown(f"**Mini-exercice.** {exercise}")
 
 
 def style_figure(fig):

@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure
 
 
 def generate_counts(seed: int, sites: int, mean_count: int, dispersion: float) -> pd.DataFrame:
@@ -19,7 +19,11 @@ def generate_counts(seed: int, sites: int, mean_count: int, dispersion: float) -
 
 
 def render(context: dict) -> None:
-    section("Statistiques descriptives", "Exemple : abondance observée sur des points d'écoute.")
+    is_data = context.get("data") is not None
+    section(
+        "Statistiques descriptives",
+        None if is_data else "Exemple : abondance observée sur des points d'écoute.",
+    )
     module_intro(
         "Les statistiques descriptives résument un jeu de données avec des indicateurs simples : moyenne, médiane, dispersion, minimum et maximum.",
         "Elles servent à comprendre rapidement la structure d'un jeu de données avant d'appliquer un modèle ou un test.",
@@ -28,7 +32,7 @@ def render(context: dict) -> None:
 
     left, right = st.columns([0.85, 1.55])
 
-    if context.get("data") is not None:
+    if is_data:
         data_src = context["data"]
         numeric_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
@@ -36,6 +40,10 @@ def render(context: dict) -> None:
             st.warning("Le fichier ne contient pas de colonne numérique exploitable.")
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Abondance": [12, 5, 23, 8, 17], "Habitat": ["Forêt", "Savane", "Zone humide", "Forêt", "Savane"]}),
+                "template_stats_descriptives.csv",
+            )
             count_col = st.selectbox("Colonne d'abondance", numeric_cols)
             hab_col = st.selectbox("Colonne d'habitat (optionnel)", ["—"] + cat_cols)
         sub = data_src[[count_col] + ([hab_col] if hab_col != "—" else [])].dropna(subset=[count_col])
@@ -44,6 +52,7 @@ def render(context: dict) -> None:
             data["Habitat"] = "Tous les sites"
         else:
             data = data.rename(columns={hab_col: "Habitat"})
+        x_title = count_col
     else:
         with left:
             sites = st.slider("Nombre de sites", 10, 120, 48)
@@ -51,12 +60,13 @@ def render(context: dict) -> None:
             dispersion = st.slider("Agrégation spatiale", 1.0, 30.0, 8.0, step=1.0)
             seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=21)
         data = generate_counts(int(seed), sites, mean_count, dispersion)
+        x_title = "Nombre d'individus observés"
 
     desc = data["Abondance"].describe()
 
     with right:
         fig = px.histogram(data, x="Abondance", color="Habitat", marginal="box", nbins=18)
-        fig.update_layout(xaxis_title="Nombre d'individus observés", yaxis_title="Nombre de sites")
+        fig.update_layout(xaxis_title=x_title, yaxis_title="Nombre de sites")
         style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -72,7 +82,7 @@ def render(context: dict) -> None:
     learning_notes(
         "Toujours regarder la distribution avant de conclure.",
         "La moyenne seule peut masquer des sites très riches ou très pauvres.",
-        "Augmente l'agrégation spatiale et observe l'effet sur la moyenne et la médiane.",
+        None if is_data else "Augmente l'agrégation spatiale et observe l'effet sur la moyenne et la médiane.",
     )
 
     with st.expander("Données et résumé par habitat"):

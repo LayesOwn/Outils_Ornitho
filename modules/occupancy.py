@@ -7,7 +7,7 @@ import streamlit as st
 from scipy.optimize import minimize
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def simulate_detection_history(n_sites: int, n_visits: int, psi: float, p: float, seed: int) -> np.ndarray:
@@ -40,7 +40,15 @@ def fit_occupancy(history: np.ndarray) -> dict[str, float]:
                       options={"xatol": 1e-6, "fatol": 1e-6, "maxiter": 5000})
     psi_hat = 1.0 / (1.0 + np.exp(-result.x[0]))
     p_hat = 1.0 / (1.0 + np.exp(-result.x[1]))
-    return {"psi": round(psi_hat, 3), "p": round(p_hat, 3), "naive": round(naive, 3)}
+    # Flag extreme logit values (|logit| > 4.5 ≈ p < 0.01 or p > 0.99)
+    converged_extreme = abs(result.x[0]) > 4.5 or abs(result.x[1]) > 4.5
+    return {
+        "psi": round(psi_hat, 3),
+        "p": round(p_hat, 3),
+        "naive": round(naive, 3),
+        "converged_extreme": converged_extreme,
+        "converged": bool(result.success),
+    }
 
 
 def render(context: dict) -> None:
@@ -65,6 +73,10 @@ def render(context: dict) -> None:
             )
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Site": ["S01", "S02", "S03", "S04", "S05"], "V1": [1, 0, 1, 0, 1], "V2": [1, 0, 0, 1, 1], "V3": [0, 0, 1, 0, 1]}),
+                "template_occupation.csv",
+            )
             visit_cols = st.multiselect(
                 "Colonnes de visites (binaires 0/1)",
                 binary_cols,
@@ -87,13 +99,23 @@ def render(context: dict) -> None:
         history = simulate_detection_history(n_sites, n_visits, psi_true, p_true, int(seed))
 
     estimates = fit_occupancy(history)
+    if estimates.get("converged_extreme"):
+        st.warning(
+            "⚠ Le modèle a convergé vers des valeurs extrêmes (ψ ou p proche de 0 ou 1). "
+            "Cela peut indiquer un échantillon trop petit, trop peu de visites, ou des données avec trop de zéros ou trop de détections."
+        )
     naive_theory = psi_true * (1.0 - (1.0 - p_true) ** n_visits) if psi_true is not None else None
     prob_miss = (1.0 - p_true) ** n_visits if p_true is not None else None
 
     with right:
-        labels = ["ψ vraie", "ψ estimée\n(modèle)", "Occupation\nnaïve"]
-        values = [psi_true, estimates["psi"], estimates["naive"]]
-        colors = ["#39d98a", "#4dabf7", "#ff6b6b"]
+        if psi_true is not None:
+            labels = ["ψ vraie", "ψ estimée\n(modèle)", "Occupation\nnaïve"]
+            values = [psi_true, estimates["psi"], estimates["naive"]]
+            colors = ["#39d98a", "#4dabf7", "#ff6b6b"]
+        else:
+            labels = ["ψ estimée\n(modèle)", "Occupation\nnaïve"]
+            values = [estimates["psi"], estimates["naive"]]
+            colors = ["#4dabf7", "#ff6b6b"]
         fig = go.Figure()
         fig.add_bar(
             x=labels, y=values,
@@ -125,7 +147,7 @@ def render(context: dict) -> None:
         )
 
     with st.expander("Historique de détection (30 premiers sites)"):
-        n_show = min(30, n_sites)
+        n_show = min(30, history.shape[0])
         hist_df = pd.DataFrame(
             history[:n_show],
             columns=[f"V{v + 1}" for v in range(n_visits)],
@@ -144,17 +166,16 @@ def render(context: dict) -> None:
     learning_notes(
         "Plus p est faible ou K est petit, plus le biais de l'occupation naïve est grand.",
         "Le modèle suppose une population fermée entre visites et une détection indépendante d'un site à l'autre.",
-        "Réduis le nombre de visites à 1 : le modèle peut-il encore distinguer ψ de p ?",
+        None if psi_true is None else "Réduis le nombre de visites à 1 : le modèle peut-il encore distinguer ψ de p ?",
     )
 
-    pdf = build_pdf_report(
-        "ORNI-LAB - Modèles d'occupation",
-        [
-            f"Sites = {n_sites}, visites = {n_visits}.",
-            f"Parametres vrais : psi = {psi_true:.3f}, p = {p_true:.3f}.",
-            f"Estimations : psi = {estimates['psi']:.3f}, p = {estimates['p']:.3f}.",
-            f"Occupation naive = {estimates['naive']:.3f} (biais = {bias:+.3f}).",
-        ],
-    )
+    pdf_lines = [
+        f"Sites = {history.shape[0]}, visites = {n_visits}.",
+        f"Estimations : psi = {estimates['psi']:.3f}, p = {estimates['p']:.3f}.",
+        f"Occupation naive = {estimates['naive']:.3f} (biais = {bias:+.3f}).",
+    ]
+    if psi_true is not None:
+        pdf_lines.insert(1, f"Parametres vrais : psi = {psi_true:.3f}, p = {p_true:.3f}.")
+    pdf = build_pdf_report("ORNI-LAB - Modèles d'occupation", pdf_lines)
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_occupation.pdf", "application/pdf")

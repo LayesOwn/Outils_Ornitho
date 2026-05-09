@@ -8,7 +8,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import erf, erfinv
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def _effective_strip_width(sigma: float, strip_width: float) -> float:
@@ -54,6 +54,7 @@ def simulate_distances(
 
 
 def render(context: dict) -> None:
+    is_data = context.get("data") is not None
     section("Distance sampling", "Estimer la densité d'oiseaux à partir des distances d'observation.")
     module_intro(
         "Le distance sampling estime la densité animale en modélisant la chute de détection avec la distance à l'observateur.",
@@ -70,6 +71,10 @@ def render(context: dict) -> None:
             st.warning("Le fichier ne contient pas de colonne numérique de distances.")
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Distance_m": [12.4, 45.1, 78.9, 3.2, 120.5, 55.7, 22.0, 88.3]}),
+                "template_distance_sampling.csv",
+            )
             dist_col = st.selectbox("Colonne distances (m)", numeric_cols)
             strip_width = st.number_input("Demi-largeur W (m)", min_value=1.0, value=200.0, step=10.0)
             transect_length = st.number_input("Longueur totale des transects (m)", min_value=100.0, value=3000.0, step=100.0)
@@ -141,7 +146,7 @@ def render(context: dict) -> None:
     learning_notes(
         "L'ESW est le cœur du distance sampling : elle convertit des comptages en surface effectivement couverte.",
         "La fonction demi-normale suppose une détection parfaite à distance 0. D'autres fonctions (hazard-rate) peuvent mieux s'ajuster.",
-        "Réduis σ à 20 m et W à 100 m : que se passe-t-il sur le nombre de détections et la précision de l'estimation ?",
+        None if is_data else "Réduis σ à 20 m et W à 100 m : que se passe-t-il sur le nombre de détections et la précision de l'estimation ?",
     )
 
     dist_df = pd.DataFrame({"Distance_m": distances.round(1)})
@@ -151,14 +156,19 @@ def render(context: dict) -> None:
         "orni_lab_distance.csv",
         "text/csv",
     )
-    pdf = build_pdf_report(
-        "ORNI-LAB - Distance sampling",
-        [
+    if is_data:
+        pdf_lines = [
+            f"Transects = {int(n_transects)}, longueur = {transect_length} m, demi-largeur W = {strip_width} m.",
+            f"Detections = {fit['n']}. sigma_estime = {fit['sigma']:.1f} m.",
+            f"ESW = {fit['esw']:.1f} m. Densite_estimee = {estimated_density:.2f} ind/ha.",
+        ]
+    else:
+        pdf_lines = [
             f"Transects = {n_transects}, longueur = {transect_length} m, demi-largeur W = {strip_width} m.",
             f"Detections = {fit['n']}. sigma_vrai = {sigma_true} m, sigma_estime = {fit['sigma']:.1f} m.",
             f"ESW = {fit['esw']:.1f} m. Densite_vraie = {true_density:.1f}, Densite_estimee = {estimated_density:.2f} ind/ha.",
             f"Biais estimation = {bias_pct:+.1f} %.",
-        ],
-    )
+        ]
+    pdf = build_pdf_report("ORNI-LAB - Distance sampling", pdf_lines)
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_distance.pdf", "application/pdf")

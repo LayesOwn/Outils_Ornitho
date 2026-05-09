@@ -7,7 +7,7 @@ import streamlit as st
 from scipy import stats
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def simulate_population_series(n_years: int, n0: int, trend_r: float, sd_noise: float, seed: int) -> pd.DataFrame:
@@ -42,6 +42,7 @@ def moving_average(series: np.ndarray, window: int) -> np.ndarray:
 
 
 def render(context: dict) -> None:
+    is_data = context.get("data") is not None
     section("Séries temporelles de population", "Détecter une tendance dans un suivi annuel d'oiseaux.")
     module_intro(
         "Une série temporelle de population suit l'évolution de l'abondance d'une espèce sur plusieurs années consécutives.",
@@ -58,6 +59,10 @@ def render(context: dict) -> None:
             st.warning("Le fichier doit contenir au moins une colonne année et une colonne abondance.")
             return
         with left:
+            csv_template_button(
+                pd.DataFrame({"Annee": [2015, 2016, 2017, 2018, 2019, 2020], "Effectif": [480, 453, 421, 398, 375, 352]}),
+                "template_serie_temporelle.csv",
+            )
             year_col = st.selectbox("Colonne année", numeric_cols)
             count_col = st.selectbox("Colonne abondance", [c for c in numeric_cols if c != year_col])
             agg_func = st.radio("Agrégation par année", ["Somme", "Moyenne"], horizontal=True)
@@ -135,7 +140,7 @@ def render(context: dict) -> None:
     learning_notes(
         "Un déclin de 3 % par an donne une réduction de 50 % en 23 ans.",
         "Mann-Kendall ne localise pas la rupture ; pour détecter quand le changement a commencé, utiliser un test de rupture (Pettitt, CUSUM).",
-        "Augmente la variabilité interannuelle : à partir de quel CV le déclin simulé n'est-il plus détectable ?",
+        None if is_data else "Augmente la variabilité interannuelle : à partir de quel CV le déclin simulé n'est-il plus détectable ?",
     )
 
     with st.expander("Voir la série complète"):
@@ -147,13 +152,19 @@ def render(context: dict) -> None:
         "orni_lab_serie_temporelle.csv",
         "text/csv",
     )
-    pdf = build_pdf_report(
-        "ORNI-LAB - Series temporelles",
-        [
+    if is_data:
+        pdf_lines = [
+            f"Suivi de {len(data)} ans.",
+            f"Regression OLS : pente = {trend_lin.slope:+.1f}, R2 = {trend_lin.rvalue ** 2:.2f}.",
+            f"Mann-Kendall : z = {mk['z']:.3f}, p = {mk['pvalue']:.4f}, tendance {mk['trend']}.",
+        ]
+    else:
+        annual_pct = 100.0 * (np.exp(trend_r) - 1.0)
+        pdf_lines = [
             f"Suivi de {n_years} ans. N0 = {n0}. Tendance vraie r = {trend_r:+.3f} ({annual_pct:+.1f} %/an).",
             f"Regression OLS : pente = {trend_lin.slope:+.1f}, R2 = {trend_lin.rvalue ** 2:.2f}.",
             f"Mann-Kendall : z = {mk['z']:.3f}, p = {mk['pvalue']:.4f}, tendance {mk['trend']}.",
-        ],
-    )
+        ]
+    pdf = build_pdf_report("ORNI-LAB - Series temporelles", pdf_lines)
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_serie_temporelle.pdf", "application/pdf")

@@ -6,13 +6,14 @@ from scipy import stats
 
 from core.export import build_pdf_report
 from data.examples import wing_mass_dataset
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def render(context: dict) -> None:
+    is_data = context.get("data") is not None
     section(
         "Corrélation et régression",
-        "Exemple : relation entre longueur de l'aile et masse corporelle chez des passereaux.",
+        None if is_data else "Exemple : relation entre longueur de l'aile et masse corporelle chez des passereaux.",
     )
     module_intro(
         "La corrélation mesure l'intensité d'une relation entre deux variables. La régression estime une équation permettant de prédire une variable à partir d'une autre.",
@@ -22,12 +23,17 @@ def render(context: dict) -> None:
     left, right = st.columns([0.85, 1.6])
 
     if context.get("data") is not None:
+        import pandas as _pd
         data_src = context["data"]
         numeric_cols = context["numeric_columns"]
         if len(numeric_cols) < 2:
             st.warning("Le fichier doit contenir au moins deux colonnes numériques.")
             return
         with left:
+            csv_template_button(
+                _pd.DataFrame({"Longueur_aile_mm": [72.1, 75.4, 68.9, 80.2, 71.3], "Masse_g": [18.2, 20.1, 17.4, 22.5, 17.9]}),
+                "template_regression.csv",
+            )
             x_col = st.selectbox("Variable explicative X", numeric_cols, index=0)
             y_opts = [c for c in numeric_cols if c != x_col]
             y_col = st.selectbox("Variable réponse Y", y_opts, index=0)
@@ -86,7 +92,7 @@ def render(context: dict) -> None:
     learning_notes(
         "R² indique la proportion de variation expliquée par le modèle linéaire.",
         "Une corrélation ne prouve pas une causalité et peut être influencée par des variables cachées.",
-        "Augmente la variabilité individuelle et observe l'effet sur R² et la p-value.",
+        None if is_data else "Augmente la variabilité individuelle et observe l'effet sur R² et la p-value.",
     )
     teacher_note(
         f"Équation ajustée : {y_col} = {intercept:.3g} + {slope:.3g} × {x_col}. "
