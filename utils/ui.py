@@ -1,9 +1,29 @@
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 
 PLOTLY_COLORS = ["#39d98a", "#4dabf7", "#ff6b6b", "#ffd166", "#b197fc", "#20c997"]
+
+
+def _clean_data(frame: pd.DataFrame) -> pd.DataFrame:
+    data = frame.copy().dropna(axis=1, how="all")
+    data.columns = [str(c).strip() for c in data.columns]
+    for col in data.columns:
+        if data[col].dtype == "object":
+            converted = pd.to_numeric(
+                data[col].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+            )
+            if converted.notna().sum() >= max(3, int(0.7 * data[col].notna().sum())):
+                data[col] = converted
+    return data
+
+
+def _split_columns(frame: pd.DataFrame) -> tuple[list[str], list[str]]:
+    numeric = frame.select_dtypes(include="number").columns.tolist()
+    categorical = [c for c in frame.columns if c not in numeric and frame[c].nunique(dropna=True) <= 30]
+    return numeric, categorical
 
 
 def apply_global_style() -> None:
@@ -220,18 +240,44 @@ def render_header(title: str, subtitle: str) -> None:
 
 def render_sidebar() -> dict:
     st.sidebar.title("Paramètres ORNI-LAB")
-    mode = st.sidebar.radio(
-        "Mode",
-        ["Étudiant", "Enseignant"],
-        index=0,
-        horizontal=True,
-    )
+    mode = st.sidebar.radio("Mode", ["Étudiant", "Enseignant"], index=0, horizontal=True)
+    st.sidebar.divider()
+
+    st.sidebar.markdown("**Données de terrain**")
+    uploaded = st.sidebar.file_uploader("Charger un CSV (optionnel)", type=["csv"], label_visibility="collapsed")
+
+    data: pd.DataFrame | None = None
+    numeric_columns: list[str] = []
+    categorical_columns: list[str] = []
+    data_filename: str = ""
+
+    if uploaded is not None:
+        sep_labels = {",": "Virgule", ";": "Point-virgule", "\t": "Tabulation"}
+        sep_choice = st.sidebar.selectbox("Séparateur", list(sep_labels.values()), index=1)
+        sep = {v: k for k, v in sep_labels.items()}[sep_choice]
+        try:
+            uploaded.seek(0)
+            raw = pd.read_csv(uploaded, sep=sep)
+            data = _clean_data(raw)
+            numeric_columns, categorical_columns = _split_columns(data)
+            data_filename = uploaded.name
+            st.sidebar.success(f"{len(data):,} lignes · {len(data.columns)} colonnes")
+        except Exception as exc:
+            st.sidebar.error(f"Erreur lecture : {exc}")
+
     st.sidebar.divider()
     st.sidebar.caption(
         "Les paramètres modifient les sorties en temps réel. "
         "Les exports PDF reprennent les résultats et l'interprétation."
     )
-    return {"mode": mode, "is_teacher": mode == "Enseignant"}
+    return {
+        "mode": mode,
+        "is_teacher": mode == "Enseignant",
+        "data": data,
+        "numeric_columns": numeric_columns,
+        "categorical_columns": categorical_columns,
+        "data_filename": data_filename,
+    }
 
 
 def teacher_note(text: str, context: dict) -> None:

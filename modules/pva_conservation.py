@@ -8,6 +8,11 @@ from simulations.pva_engine import simulate_pva, summarize_pva
 from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
+@st.cache_data
+def _run_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, seed):
+    return simulate_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, seed)
+
+
 def render(context: dict) -> None:
     section("PVA et conservation", "Analyse de viabilité de population avec incertitude environnementale.")
     module_intro(
@@ -21,14 +26,14 @@ def render(context: dict) -> None:
         n0 = st.slider("Effectif initial", 10, 2000, 180)
         mean_r = st.slider("Croissance moyenne r", -0.25, 0.35, 0.04, step=0.01)
         sd_r = st.slider("Variabilité environnementale", 0.0, 0.30, 0.09, step=0.01)
-        k = st.slider("Capacité de charge", 50, 5000, 900, step=50)
+        k = st.slider("Capacité de charge", 50, 100000, 900, step=100)
         threshold = st.slider("Seuil de quasi-extinction", 1, 200, 25)
         loss = st.slider("Pertes annuelles fixes", 0, 100, 6)
         years = st.slider("Horizon", 10, 100, 50)
         iterations = st.slider("Nombre de simulations", 50, 1000, 250, step=50)
         seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=42)
 
-    data = simulate_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, int(seed))
+    data = _run_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, int(seed))
     summary = summarize_pva(data, threshold)
     yearly = data.groupby("annee")["effectif"].quantile([0.05, 0.5, 0.95]).unstack().reset_index()
     yearly.columns = ["Année", "P05", "Médiane", "P95"]

@@ -27,14 +27,32 @@ def render(context: dict) -> None:
     )
 
     left, right = st.columns([0.85, 1.55])
-    with left:
-        sites = st.slider("Nombre de sites", 10, 120, 48)
-        mean_count = st.slider("Abondance moyenne attendue", 1, 80, 18)
-        dispersion = st.slider("Agrégation spatiale", 1.0, 30.0, 8.0, step=1.0)
-        seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=21)
 
-    data = generate_counts(int(seed), sites, mean_count, dispersion)
-    stats = data["Abondance"].describe()
+    if context.get("data") is not None:
+        data_src = context["data"]
+        numeric_cols = context["numeric_columns"]
+        cat_cols = context["categorical_columns"]
+        if not numeric_cols:
+            st.warning("Le fichier ne contient pas de colonne numérique exploitable.")
+            return
+        with left:
+            count_col = st.selectbox("Colonne d'abondance", numeric_cols)
+            hab_col = st.selectbox("Colonne d'habitat (optionnel)", ["—"] + cat_cols)
+        sub = data_src[[count_col] + ([hab_col] if hab_col != "—" else [])].dropna(subset=[count_col])
+        data = sub.rename(columns={count_col: "Abondance"})
+        if hab_col == "—":
+            data["Habitat"] = "Tous les sites"
+        else:
+            data = data.rename(columns={hab_col: "Habitat"})
+    else:
+        with left:
+            sites = st.slider("Nombre de sites", 10, 120, 48)
+            mean_count = st.slider("Abondance moyenne attendue", 1, 80, 18)
+            dispersion = st.slider("Agrégation spatiale", 1.0, 30.0, 8.0, step=1.0)
+            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=21)
+        data = generate_counts(int(seed), sites, mean_count, dispersion)
+
+    desc = data["Abondance"].describe()
 
     with right:
         fig = px.histogram(data, x="Abondance", color="Habitat", marginal="box", nbins=18)
@@ -43,12 +61,12 @@ def render(context: dict) -> None:
         st.plotly_chart(fig, use_container_width=True)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Moyenne", f"{stats['mean']:.1f}")
-    c2.metric("Médiane", f"{stats['50%']:.1f}")
-    c3.metric("Écart-type", f"{stats['std']:.1f}")
-    c4.metric("Maximum", f"{stats['max']:.0f}")
+    c1.metric("Moyenne", f"{desc['mean']:.1f}")
+    c2.metric("Médiane", f"{desc['50%']:.1f}")
+    c3.metric("Écart-type", f"{desc['std']:.1f}")
+    c4.metric("Maximum", f"{desc['max']:.0f}")
     explain(
-        f"La moyenne est {stats['mean']:.1f}, tandis que la médiane est {stats['50%']:.1f}. "
+        f"La moyenne est {desc['mean']:.1f}, tandis que la médiane est {desc['50%']:.1f}. "
         "Un écart important entre ces valeurs indique une distribution asymétrique, fréquente dans les comptages d'oiseaux."
     )
     learning_notes(
@@ -65,7 +83,7 @@ def render(context: dict) -> None:
     st.download_button("Exporter les données CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_stats_descriptives.csv", "text/csv")
     pdf = build_pdf_report(
         "ORNI-LAB - Statistiques descriptives",
-        [f"Sites = {sites}. Moyenne = {stats['mean']:.2f}. Médiane = {stats['50%']:.2f}. Écart-type = {stats['std']:.2f}."],
+        [f"N = {len(data)}. Moyenne = {desc['mean']:.2f}. Mediane = {desc['50%']:.2f}. Ecart-type = {desc['std']:.2f}."],
     )
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_stats_descriptives.pdf", "application/pdf")

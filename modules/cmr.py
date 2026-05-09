@@ -40,7 +40,7 @@ def render(context: dict) -> None:
     with col1:
         marked = st.slider("Individus marqués M", 10, 1000, scenario["marked"])
         captured = st.slider("Individus capturés C", 10, 1000, scenario["captured"])
-        recaptured = st.slider("Marqués recapturés R", 1, min(marked, captured), scenario["recaptured"])
+        recaptured = st.slider("Marqués recapturés R", 1, min(marked, captured), min(scenario["recaptured"], min(marked, captured)))
 
     estimate, low, high = lincoln_petersen(marked, captured, recaptured)
     with col2:

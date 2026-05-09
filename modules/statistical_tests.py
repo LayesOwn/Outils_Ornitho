@@ -25,22 +25,46 @@ def render(context: dict) -> None:
     )
 
     left, right = st.columns([0.9, 1.5])
-    with left:
-        n_a = st.slider("Nids en forêt restaurée", 8, 120, 36)
-        n_b = st.slider("Nids en forêt dégradée", 8, 120, 34)
-        mean_a = st.slider("Moyenne restaurée", 0.0, 6.0, 3.2, step=0.1)
-        mean_b = st.slider("Moyenne dégradée", 0.0, 6.0, 2.4, step=0.1)
-        sd = st.slider("Variabilité entre nids", 0.2, 3.0, 1.1, step=0.1)
-        seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33)
 
-    data = generate_two_groups(int(seed), n_a, n_b, mean_a, mean_b, sd)
-    group_a = data.loc[data["Habitat"] == "Forêt restaurée", "Succès reproducteur"]
-    group_b = data.loc[data["Habitat"] == "Forêt dégradée", "Succès reproducteur"]
+    if context.get("data") is not None:
+        data_src = context["data"]
+        numeric_cols = context["numeric_columns"]
+        cat_cols = context["categorical_columns"]
+        if not numeric_cols or not cat_cols:
+            st.warning("Le fichier doit contenir au moins une colonne numérique et une colonne catégorielle.")
+            return
+        with left:
+            value_col = st.selectbox("Variable numérique à comparer", numeric_cols)
+            group_col = st.selectbox("Variable de groupe (2 modalités)", cat_cols)
+        sub = data_src[[group_col, value_col]].dropna()
+        groups = sub[group_col].unique()
+        if len(groups) != 2:
+            st.warning(f"La colonne **{group_col}** contient {len(groups)} modalité(s). Exactement 2 sont requises.")
+            return
+        group_a = sub.loc[sub[group_col] == groups[0], value_col]
+        group_b = sub.loc[sub[group_col] == groups[1], value_col]
+        data = sub.rename(columns={group_col: "Groupe", value_col: "Valeur"})
+        hab_label, val_label = "Groupe", "Valeur"
+    else:
+        with left:
+            n_a = st.slider("Nids en forêt restaurée", 8, 120, 36)
+            n_b = st.slider("Nids en forêt dégradée", 8, 120, 34)
+            mean_a = st.slider("Moyenne restaurée", 0.0, 6.0, 3.2, step=0.1)
+            mean_b = st.slider("Moyenne dégradée", 0.0, 6.0, 2.4, step=0.1)
+            sd = st.slider("Variabilité entre nids", 0.2, 3.0, 1.1, step=0.1)
+            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33)
+        data = generate_two_groups(int(seed), n_a, n_b, mean_a, mean_b, sd)
+        data = data.rename(columns={"Habitat": "Groupe", "Succès reproducteur": "Valeur"})
+        groups = data["Groupe"].unique()
+        group_a = data.loc[data["Groupe"] == groups[0], "Valeur"]
+        group_b = data.loc[data["Groupe"] == groups[1], "Valeur"]
+        hab_label, val_label = "Groupe", "Valeur"
+
     test = stats.ttest_ind(group_a, group_b, equal_var=False)
-    effect = group_a.mean() - group_b.mean()
+    effect = float(group_a.mean() - group_b.mean())
 
     with right:
-        fig = px.box(data, x="Habitat", y="Succès reproducteur", points="all", color="Habitat")
+        fig = px.box(data, x="Groupe", y="Valeur", points="all", color="Groupe")
         fig.update_layout(showlegend=False)
         style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
@@ -50,7 +74,11 @@ def render(context: dict) -> None:
     c2.metric("t de Welch", f"{test.statistic:.2f}")
     c3.metric("p-value", f"{test.pvalue:.3g}")
     conclusion = "statistiquement nette" if test.pvalue < 0.05 else "non concluante au seuil 5 %"
-    explain(f"La différence moyenne est de {effect:.2f} jeunes par nid. La p-value vaut {test.pvalue:.3g}, donc la comparaison est {conclusion}.")
+    g0, g1 = str(groups[0]), str(groups[1])
+    explain(
+        f"Différence moyenne ({g0} vs {g1}) : {effect:.3g}. "
+        f"p-value = {test.pvalue:.3g} → comparaison {conclusion}."
+    )
     teacher_note("Point de discussion : distinguer taille d'effet, p-value, puissance statistique et importance écologique.", context)
     learning_notes(
         "Une p-value ne mesure pas l'importance biologique de l'effet.",
@@ -61,7 +89,10 @@ def render(context: dict) -> None:
     st.download_button("Exporter les données CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_tests.csv", "text/csv")
     pdf = build_pdf_report(
         "ORNI-LAB - Tests statistiques",
-        [f"Différence moyenne = {effect:.2f}. t = {test.statistic:.2f}. p = {test.pvalue:.3g}. Conclusion : {conclusion}."],
+        [
+            f"Groupes : {g0} (n={len(group_a)}) vs {g1} (n={len(group_b)}).",
+            f"Difference moyenne = {effect:.3g}. t = {test.statistic:.3f}. p = {test.pvalue:.3g}. Conclusion : {conclusion}.",
+        ],
     )
     if pdf:
         st.download_button("Exporter le résumé PDF", pdf, "orni_lab_tests.pdf", "application/pdf")

@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 
 
-def wing_mass_dataset(seed: int = 7, n: int = 42) -> pd.DataFrame:
+def wing_mass_dataset(seed: int = 7, n: int = 42, noise: float = 2.4) -> pd.DataFrame:
     """Synthetic but realistic passerine dataset for regression exercises."""
     rng = np.random.default_rng(seed)
     wing = rng.normal(72, 6.5, n).clip(55, 92)
-    mass = 0.42 * wing - 12 + rng.normal(0, 2.4, n)
+    mass = 0.42 * wing - 12 + rng.normal(0, noise, n)
     return pd.DataFrame(
         {
             "Longueur de l'aile (mm)": wing.round(1),

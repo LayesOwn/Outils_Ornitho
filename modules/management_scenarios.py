@@ -8,6 +8,7 @@ from simulations.pva_engine import simulate_pva, summarize_pva
 from utils.ui import explain, learning_notes, module_intro, section, style_figure
 
 
+@st.cache_data
 def run_scenario_table(n0: int, years: int, seed: int) -> pd.DataFrame:
     scenarios = {
         "Sans action": {"mean_r": 0.00, "sd_r": 0.11, "loss": 10, "k": 700},
