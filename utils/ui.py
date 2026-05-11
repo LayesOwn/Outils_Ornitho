@@ -43,15 +43,32 @@ def apply_global_style() -> None:
             --orni-panel-soft: #151d28;
             --orni-line: #263241;
         }
+        /* Header Streamlit : on le garde à sa taille naturelle (le bouton
+           de sidebar y est ancré), on le colorie juste comme notre fond */
         header[data-testid="stHeader"] {
-            background: transparent;
-            height: 0;
+            background: var(--orni-bg) !important;
+            box-shadow: none !important;
+            border-bottom: 1px solid var(--orni-line);
         }
-        div[data-testid="stToolbar"],
+        /* Cacher uniquement les éléments de branding/toolbar, PAS le toggle sidebar */
         div[data-testid="stDecoration"],
         div[data-testid="stStatusWidget"],
         #MainMenu {
-            display: none;
+            display: none !important;
+        }
+        div[data-testid="stToolbar"] {
+            visibility: hidden !important;
+        }
+        /* Styler le bouton de toggle sidebar pour qu'il reste visible */
+        header[data-testid="stHeader"] button,
+        header[data-testid="stHeader"] a {
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: var(--orni-muted) !important;
+        }
+        header[data-testid="stHeader"] button:hover {
+            color: var(--orni-green) !important;
+            background: rgba(57,217,138,0.1) !important;
         }
         .stApp {
             background:
@@ -62,7 +79,7 @@ def apply_global_style() -> None:
         }
         .main .block-container {
             max-width: 1280px;
-            padding-top: 2.2rem;
+            padding-top: 1rem;
             padding-bottom: 3rem;
         }
         h1, h2, h3 {
@@ -384,6 +401,88 @@ def render_sidebar() -> dict:
         "Les paramètres modifient les sorties en temps réel. "
         "Les exports PDF reprennent les résultats et l'interprétation."
     )
+
+    # ── Documentation ──────────────────────────────────────────────────────
+    st.sidebar.divider()
+    st.sidebar.markdown("#### 📖 Documentation")
+
+    with st.sidebar.expander("À propos d'ORNI-LAB"):
+        st.markdown(
+            """
+**ORNI-LAB** est un laboratoire interactif de modélisation ornithologique conçu pour l'enseignement universitaire en écologie et biologie des populations.
+
+Il propose **18 modules** répartis en deux sections complémentaires, utilisables avec des données simulées ou des fichiers CSV terrain.
+
+Conçu pour les TD, TP et le travail en autonomie — du L3 au M2.
+            """
+        )
+
+    with st.sidebar.expander("Comment utiliser l'application"):
+        st.markdown(
+            """
+**1. Choisir un mode**
+- 👨‍🎓 **Étudiant** : résultats et interprétations automatiques
+- 🎓 **Enseignant** : + formules LaTeX, notes pédagogiques et erreurs fréquentes
+
+**2. Charger des données (optionnel)**
+Déposez un fichier CSV terrain via *Données de terrain*. Sans fichier, chaque module génère une simulation pédagogique.
+
+**3. Naviguer**
+Choisissez une section depuis la **page d'accueil**, puis sélectionnez un module dans la sidebar.
+
+**4. Explorer**
+Ajustez les paramètres — les graphiques et résultats se mettent à jour en temps réel.
+
+**5. Exporter**
+Chaque module propose un export **CSV** des données et un rapport **PDF** avec résultats et interprétation.
+            """
+        )
+
+    with st.sidebar.expander("📊 Biostatistique — 8 modules"):
+        st.markdown(
+            """
+| Module | Utilité |
+|:---|:---|
+| Statistiques descriptives | Résumer et visualiser un jeu de données |
+| Analyse CSV | Exploration guidée d'un fichier terrain |
+| Corrélation et régression | Relation entre deux variables |
+| Tests statistiques | Comparer groupes, t-test, ANOVA, Mann-Whitney |
+| GLM comptage | Poisson / binomial négatif avec habitat et effort |
+| Modèle mixte (LMM) | Effets aléatoires pour données groupées |
+| Domaine vital — MCP | Polygone convexe minimum depuis GPS |
+| Domaine vital — KDE | Estimation à noyau, isopleths 50 %–95 % |
+            """
+        )
+
+    with st.sidebar.expander("🦅 Dynamique des populations — 10 modules"):
+        st.markdown(
+            """
+| Module | Utilité |
+|:---|:---|
+| Richesse & diversité | Shannon, Simpson, courbes d'accumulation |
+| Croissance exp./logistique | Densité-dépendance, capacité de charge |
+| Matrices de Leslie | Projection par classes d'âge, λ, élasticité |
+| CMR | Capture-Marquage-Recapture, Lincoln-Petersen |
+| Modèles d'occupation | ψ et p séparés, MacKenzie et al. 2002 |
+| Distance sampling | Densité par transect, demi-normale |
+| Lotka-Volterra | Oscillations proie-prédateur |
+| Séries temporelles | Mann-Kendall, tendance pluriannuelle |
+| PVA et conservation | Risque d'extinction, stochasticité |
+| Scénarios de gestion | Comparer des actions de conservation |
+            """
+        )
+
+    with st.sidebar.expander("Format CSV attendu"):
+        st.markdown(
+            """
+- Séparateur : **virgule** ou **point-virgule** (sélectionnable)
+- En-têtes en première ligne
+- Colonnes numériques : décimales avec `.` ou `,`
+- Colonnes vides automatiquement ignorées
+- Chaque module propose un **exemple CSV téléchargeable** via *Format de fichier attendu*
+            """
+        )
+
     return {
         "mode": mode,
         "is_teacher": mode == "Enseignant",
