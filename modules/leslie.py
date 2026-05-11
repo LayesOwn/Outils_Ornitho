@@ -8,7 +8,7 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import default_leslie_values
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def build_leslie_matrix(fecundity: list[float], survival: list[float]) -> np.ndarray:
@@ -167,9 +167,23 @@ def render(context: dict) -> None:
             style_figure(fig_rv)
             st.plotly_chart(fig_rv, use_container_width=True)
         teacher_note(
-            "La distribution stable est le vecteur propre droit normalisé. "
-            "La valeur reproductive est le vecteur propre gauche (de A^T) normalisé à 1 pour les juvéniles. "
+            "La distribution stable est le vecteur propre droit normalisé (w/Σw). "
+            "La valeur reproductive est le vecteur propre gauche de Aᵀ, normalisé à 1 pour les juvéniles. "
             "Elle indique ce que vaut un individu de cette classe pour la croissance future de la population.",
+            context,
+        )
+        teacher_formula(
+            "Vecteurs propres — définitions",
+            r"A\mathbf{w} = \lambda_1 \mathbf{w} \quad\text{(distribution stable, vecteur droit)}"
+            r"\qquad A^\top \mathbf{v} = \lambda_1 \mathbf{v} \quad\text{(valeurs reproductives, vecteur gauche)}",
+            context,
+        )
+        teacher_pitfalls(
+            [
+                "Le signe des vecteurs propres est arbitraire : toujours vérifier que w[0] > 0 avant de normaliser.",
+                "La valeur reproductive de la classe 0 est fixée à 1 par convention (normalisation relative) — ce n'est pas une valeur absolue.",
+                "La distribution stable ne correspond à la structure observée qu'à long terme, après convergence.",
+            ],
             context,
         )
 
@@ -202,8 +216,20 @@ def render(context: dict) -> None:
             "Un changement absolu de cet élément aurait le plus grand impact sur λ."
         )
         teacher_note(
-            "La sensibilité répond à : 'si cet élément de la matrice change d'une unité (ex: +0.01 de survie adulte), "
-            "de combien λ change-t-il ?' — sans tenir compte de l'amplitude actuelle de l'élément.",
+            "La sensibilité répond à : 'si cet élément de la matrice change d'une unité, de combien λ change-t-il ?' "
+            "— sans tenir compte de l'amplitude actuelle de l'élément. C'est une dérivée partielle.",
+            context,
+        )
+        teacher_formula(
+            "Sensibilité (Caswell 2001)",
+            r"S_{ij} = \frac{\partial \lambda}{\partial a_{ij}} = \frac{v_i \, w_j}{\langle \mathbf{v}, \mathbf{w} \rangle}",
+            context,
+        )
+        teacher_pitfalls(
+            [
+                "La sensibilité compare des changements absolus : une fécondité et une survie ne sont pas comparables en sensibilité (unités différentes).",
+                "Un a_ij = 0 peut avoir une sensibilité non nulle : cela indique le 'potentiel' de cet élément, pas son impact actuel.",
+            ],
             context,
         )
 
@@ -241,6 +267,21 @@ def render(context: dict) -> None:
             "L'élasticité est adimensionnelle et permet de comparer des éléments de nature différente (survie vs fécondité). "
             "Pour les oiseaux longévifs (rapaces, albatros), l'élasticité est souvent maximale sur la survie adulte. "
             "Pour les espèces à durée de vie courte, elle peut être plus élevée sur les fécondités.",
+            context,
+        )
+        teacher_formula(
+            "Élasticité (Caswell 2001) — propriété clé : Σe_ij = 1",
+            r"e_{ij} = \frac{a_{ij}}{\lambda} \cdot S_{ij} = \frac{a_{ij}}{\lambda} \cdot \frac{v_i \, w_j}{\langle \mathbf{v}, \mathbf{w} \rangle}"
+            r"\qquad \sum_{i,j} e_{ij} = 1",
+            context,
+        )
+        teacher_pitfalls(
+            [
+                "Confondre sensibilité (Δλ pour Δa = 1, dimensionné) et élasticité (Δλ/λ pour Δa/a = 1, adimensionnel).",
+                "Interpréter une élasticité élevée sur les fécondités comme 'il faut augmenter les fécondités' : en conservation, il faut d'abord vérifier la faisabilité biologique.",
+                "Oublier que Σe_ij = 1 : si la somme s'écarte de 1, la normalisation des vecteurs est incorrecte.",
+                "Comparer les élasticités entre espèces sans tenir compte de la structure de la matrice (nombre de classes, période).",
+            ],
             context,
         )
 

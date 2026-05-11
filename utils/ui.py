@@ -207,6 +207,105 @@ def apply_global_style() -> None:
             margin: 0;
             line-height: 1.45;
         }
+        .orni-section-card {
+            background: linear-gradient(135deg, rgba(21,29,40,0.98), rgba(16,22,31,0.98));
+            border: 2px solid var(--orni-line);
+            border-radius: 14px;
+            padding: 2rem 1.8rem 1.4rem 1.8rem;
+            text-align: center;
+            min-height: 300px;
+            transition: border-color 0.25s, box-shadow 0.25s;
+            box-shadow: 0 18px 44px rgba(0,0,0,0.30);
+            margin-bottom: 0.8rem;
+        }
+        .orni-section-card:hover {
+            border-color: rgba(57,217,138,0.55);
+            box-shadow: 0 22px 55px rgba(57,217,138,0.12);
+        }
+        .orni-section-card ul {
+            list-style: none;
+            padding: 0;
+            margin: 0.6rem 0 0 0;
+        }
+        .orni-section-card ul li::before {
+            content: "▸ ";
+            color: var(--orni-green);
+        }
+        .orni-teacher-banner {
+            background: linear-gradient(90deg, rgba(255,209,102,0.18), rgba(255,209,102,0.05));
+            border-left: 5px solid #ffd166;
+            border-radius: 0 8px 8px 0;
+            padding: 0.55rem 1.1rem;
+            margin-bottom: 1.4rem;
+            font-weight: 700;
+            color: #ffd166;
+            font-size: 0.88rem;
+            letter-spacing: 0.05em;
+        }
+        .orni-teacher-note {
+            background: linear-gradient(135deg, rgba(255,209,102,0.09), rgba(255,209,102,0.03));
+            border: 1px solid rgba(255,209,102,0.38);
+            border-left: 4px solid #ffd166;
+            border-radius: 8px;
+            padding: 0.85rem 1.1rem 0.85rem 1rem;
+            margin: 0.8rem 0;
+        }
+        .orni-teacher-note-header {
+            color: #ffd166;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.45rem;
+        }
+        .orni-teacher-note-body {
+            color: #e4ecf4;
+            font-size: 0.91rem;
+            line-height: 1.65;
+            margin: 0;
+        }
+        .orni-teacher-pitfalls {
+            background: rgba(255,107,107,0.07);
+            border: 1px solid rgba(255,107,107,0.32);
+            border-left: 4px solid #ff6b6b;
+            border-radius: 8px;
+            padding: 0.85rem 1.1rem 0.85rem 1rem;
+            margin: 0.8rem 0;
+        }
+        .orni-teacher-pitfalls-header {
+            color: #ff6b6b;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.45rem;
+        }
+        .orni-teacher-pitfalls ul {
+            color: #e4ecf4;
+            margin: 0;
+            padding-left: 1.3rem;
+        }
+        .orni-teacher-pitfalls li {
+            font-size: 0.89rem;
+            line-height: 1.6;
+            margin-bottom: 0.25rem;
+        }
+        .orni-teacher-formula {
+            background: rgba(77,171,247,0.07);
+            border: 1px solid rgba(77,171,247,0.30);
+            border-left: 4px solid #4dabf7;
+            border-radius: 8px;
+            padding: 0.75rem 1.1rem;
+            margin: 0.8rem 0;
+        }
+        .orni-teacher-formula-header {
+            color: #4dabf7;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
         @media (max-width: 760px) {
             .main .block-container {
                 padding-left: 1rem;
@@ -240,7 +339,22 @@ def render_header(title: str, subtitle: str) -> None:
 
 def render_sidebar() -> dict:
     st.sidebar.title("Paramètres ORNI-LAB")
-    mode = st.sidebar.radio("Mode", ["Étudiant", "Enseignant"], index=0, horizontal=True)
+    _raw = st.sidebar.radio(
+        "Mode d'affichage",
+        ["👨‍🎓  Étudiant", "🎓  Enseignant"],
+        index=0,
+        horizontal=True,
+        help="Mode Enseignant : active les notes pédagogiques, formules et erreurs fréquentes.",
+    )
+    mode = "Enseignant" if "Enseignant" in _raw else "Étudiant"
+    if mode == "Enseignant":
+        st.sidebar.markdown(
+            '<div style="background:rgba(255,209,102,0.14);border:1px solid rgba(255,209,102,0.45);'
+            'border-radius:6px;padding:0.3rem 0.7rem;font-size:0.8rem;color:#ffd166;'
+            'text-align:center;margin:0.3rem 0 0.1rem 0;font-weight:700;letter-spacing:0.04em">'
+            '🎓 MODE ENSEIGNANT ACTIF</div>',
+            unsafe_allow_html=True,
+        )
     st.sidebar.divider()
 
     st.sidebar.markdown("**Données de terrain**")
@@ -280,9 +394,48 @@ def render_sidebar() -> dict:
     }
 
 
+def render_teacher_banner(context: dict) -> None:
+    if context.get("is_teacher"):
+        st.markdown(
+            '<div class="orni-teacher-banner">'
+            '🎓 MODE ENSEIGNANT — Notes pédagogiques, formules et erreurs fréquentes activées'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+
 def teacher_note(text: str, context: dict) -> None:
     if context.get("is_teacher"):
-        st.info(text)
+        st.markdown(
+            f'<div class="orni-teacher-note">'
+            f'<div class="orni-teacher-note-header">🎓 Note pédagogique</div>'
+            f'<div class="orni-teacher-note-body">{text}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def teacher_formula(label: str, latex: str, context: dict) -> None:
+    if context.get("is_teacher"):
+        st.markdown(
+            f'<div class="orni-teacher-formula">'
+            f'<div class="orni-teacher-formula-header">📐 {label}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.latex(latex)
+
+
+def teacher_pitfalls(items: list[str], context: dict) -> None:
+    if context.get("is_teacher"):
+        li = "".join(f"<li>{item}</li>" for item in items)
+        st.markdown(
+            f'<div class="orni-teacher-pitfalls">'
+            f'<div class="orni-teacher-pitfalls-header">⚠️ Erreurs fréquentes</div>'
+            f'<ul>{li}</ul>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def explain(text: str) -> None:
@@ -360,3 +513,80 @@ def style_figure(fig):
     fig.update_xaxes(showgrid=True, gridcolor="#253244", zerolinecolor="#3a4a5e")
     fig.update_yaxes(showgrid=True, gridcolor="#253244", zerolinecolor="#3a4a5e")
     return fig
+
+
+def render_home_page(sections: dict, section_meta: dict) -> None:
+    st.markdown(
+        """
+        <div style="text-align:center;margin-bottom:1.8rem;">
+            <h2 style="font-size:1.7rem;font-weight:700;margin-bottom:0.4rem;">
+                Choisissez votre domaine d'étude
+            </h2>
+            <p style="color:var(--orni-muted);font-size:1rem;margin:0;">
+                Deux sections complémentaires pour explorer la biologie des populations d'oiseaux.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns(2, gap="large")
+    section_names = list(sections.keys())
+
+    for col, section_name in zip([col1, col2], section_names):
+        meta = section_meta[section_name]
+        modules = sections[section_name]
+        n = len(modules)
+        module_items = "".join(f"<li>{m}</li>" for m in list(modules.keys())[:5])
+        if n > 5:
+            module_items += f"<li style='color:var(--orni-muted);font-style:italic'>+ {n - 5} autres…</li>"
+
+        with col:
+            st.markdown(
+                f"""
+                <div class="orni-section-card">
+                    <div style="font-size:3.5rem;line-height:1;margin-bottom:0.6rem">{meta['emoji']}</div>
+                    <h2 style="font-size:1.4rem;margin:0 0 0.25rem 0;color:{meta['color']}">{section_name}</h2>
+                    <div style="color:var(--orni-muted);font-size:0.82rem;margin-bottom:0.9rem;font-style:italic">{meta['subtitle']}</div>
+                    <p style="color:var(--orni-muted);font-size:0.88rem;line-height:1.5;margin-bottom:0.9rem">{meta['description']}</p>
+                    <ul style="color:#c9d4de;font-size:0.84rem;text-align:left;list-style:none;padding:0;margin:0">
+                        {module_items}
+                    </ul>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                f"Entrer — {section_name} →",
+                key=f"home_enter_{section_name}",
+                use_container_width=True,
+            ):
+                st.session_state["section"] = section_name
+                st.session_state["module"] = list(modules.keys())[0]
+
+    st.divider()
+    st.markdown("### Quel outil pour quelle question ?")
+    st.caption("Guide rapide pour orienter votre choix de module selon la question de recherche.")
+
+    _DECISION_TREE = [
+        ("Explorer et résumer un jeu de données terrain", "Statistiques descriptives", "Biostatistique"),
+        ("Charger un CSV et produire une analyse guidée", "Analyse CSV", "Biostatistique"),
+        ("Comparer des groupes (masse, envergure, comptage…)", "Tests statistiques", "Biostatistique"),
+        ("Quantifier une relation entre deux variables", "Corrélation et régression", "Biostatistique"),
+        ("Modéliser des comptages avec habitat et effort", "GLM pour données de comptage", "Biostatistique"),
+        ("Mesurer la diversité spécifique d'un site", "Richesse spécifique et diversité", "Dynamique des populations"),
+        ("Comprendre la densité-dépendance et la croissance", "Croissance exponentielle/logistique", "Dynamique des populations"),
+        ("Projeter une population par classes d'âge", "Matrices de Leslie", "Dynamique des populations"),
+        ("Estimer l'abondance absolue par marquage-recapture", "Capture-Marquage-Recapture", "Dynamique des populations"),
+        ("Corriger le biais de détectabilité sur des sites", "Modèles d'occupation", "Dynamique des populations"),
+        ("Estimer la densité sur des transects linéaires", "Distance sampling", "Dynamique des populations"),
+        ("Modéliser des interactions proie-prédateur", "Lotka-Volterra", "Dynamique des populations"),
+        ("Détecter un déclin ou une reprise pluriannuelle", "Séries temporelles de population", "Dynamique des populations"),
+        ("Évaluer le risque d'extinction d'une espèce", "PVA et conservation", "Dynamique des populations"),
+        ("Comparer des stratégies de conservation", "Scénarios de gestion", "Dynamique des populations"),
+    ]
+
+    header = "| Je veux… | Module recommandé | Section |"
+    sep = "|:---|:---|:---|"
+    rows = "\n".join(f"| {q} | **{t}** | {s} |" for q, t, s in _DECISION_TREE)
+    st.markdown(f"{header}\n{sep}\n{rows}")

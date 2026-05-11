@@ -7,7 +7,7 @@ import streamlit as st
 from scipy.optimize import minimize
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def simulate_detection_history(n_sites: int, n_visits: int, psi: float, p: float, seed: int) -> np.ndarray:
@@ -157,10 +157,27 @@ def render(context: dict) -> None:
 
     teacher_note(
         (
-            f"Occupation naïve théorique = psi × (1 − (1−p)^K) = "
+            f"Occupation naïve théorique = ψ × (1 − (1−p)^K) = "
             f"{psi_true:.2f} × (1 − {1 - p_true:.2f}^{n_visits}) = {naive_theory:.3f}. "
             if psi_true is not None else ""
-        ) + "Le modèle maximise la vraisemblance en estimant psi et p simultanément (logit-link, Nelder-Mead).",
+        ) + "Le modèle maximise la vraisemblance en estimant ψ et p simultanément via logit-link et optimisation Nelder-Mead.",
+        context,
+    )
+    teacher_formula(
+        "Vraisemblance du modèle d'occupation (MacKenzie et al. 2002)",
+        r"\mathcal{L}(\psi, p \mid \mathbf{y}) = \prod_{i=1}^{N} \Bigl["
+        r"\psi \cdot p^{y_i}(1-p)^{K-y_i} + \mathbf{1}_{[y_i=0]}(1-\psi)"
+        r"\Bigr]"
+        r"\qquad \hat{\psi}_{\text{naïve}} = \psi\bigl[1-(1-p)^K\bigr]",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Confondre absence d'observation et absence réelle : une non-détection n'implique pas que le site est inoccupé.",
+            "Violer l'hypothèse de population fermée : si l'espèce peut arriver/partir entre visites, ψ est mal estimée.",
+            "Trop peu de visites répétées (K < 3) avec p faible : le modèle ne peut pas séparer ψ de p — la vraisemblance est plate.",
+            "Interpréter p comme une propriété fixe de l'espèce : p varie selon la saison, la météo, l'observateur.",
+        ],
         context,
     )
     learning_notes(

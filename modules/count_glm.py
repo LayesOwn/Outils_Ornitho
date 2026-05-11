@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 _HABITATS = ["Forêt", "Savane", "Zone humide", "Agroécosystème"]
 _HAB_EFFECTS = {"Forêt": 1.4, "Savane": 0.8, "Zone humide": 1.8, "Agroécosystème": 0.5}
@@ -265,8 +265,29 @@ def render(context: dict) -> None:
 
     teacher_note(
         "Le quasi-Poisson n'a pas d'AIC : il gonfle les erreurs-type sans changer les coefficients. "
-        "Le binomial négatif modélise la surdispersion via un mélange Poisson-Gamma. "
-        "L'offset log(effort) est crucial : il assure que les coefficients estiment des taux, pas des comptages bruts.",
+        "Le binomial négatif modélise la surdispersion via un mélange Poisson-Gamma (variance = μ + μ²/r). "
+        "L'offset log(effort) est crucial : il transforme un comptage brut en taux normalisé par l'effort.",
+        context,
+    )
+    teacher_formula(
+        "GLM Poisson avec offset — lien log",
+        r"\log(\mu_i) = \beta_0 + \beta_1 x_{i1} + \cdots + \beta_k x_{ik} + \underbrace{\log(\text{effort}_i)}_{\text{offset (coefficient fixé à 1)}}"
+        r"\qquad \text{IRR} = e^{\hat{\beta}_j}",
+        context,
+    )
+    teacher_formula(
+        "Surdispersion — Binomial négatif",
+        r"\text{Var}(Y_i) = \mu_i + \frac{\mu_i^2}{r} \quad (r > 0)"
+        r"\qquad \phi_{\text{Pearson}} = \frac{\chi^2_{\text{Pearson}}}{df} \xrightarrow{H_0: \text{Poisson}} 1",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Omettre l'offset quand l'effort varie entre sites/années : les coefficients estiment des comptages bruts, pas des taux.",
+            "Ignorer la surdispersion (φ >> 1) avec un GLM Poisson : les erreurs-type sont sous-estimées → p-values trop petites.",
+            "Confondre IRR < 1 et 'l'habitat est mauvais' : l'IRR est relatif à la modalité de référence, pas à zéro.",
+            "Inclure des covariables corrélées (multicolinéarité) : les IRR individuels deviennent instables même si le modèle global est bon.",
+        ],
         context,
     )
     learning_notes(
