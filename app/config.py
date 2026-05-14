@@ -54,13 +54,13 @@ def _load_sections() -> dict[str, dict[str, ModuleSpec]]:
 
     return {
         "Biostatistique": {
-            "Statistiques descriptives": ModuleSpec(
-                "Résumer, visualiser et interpréter un jeu de données ornithologique.",
-                descriptive_stats.render,
-            ),
             "Analyse CSV": ModuleSpec(
                 "Charger un fichier CSV et produire une analyse exploratoire guidée.",
                 csv_analysis.render,
+            ),
+            "Statistiques descriptives": ModuleSpec(
+                "Résumer, visualiser et interpréter un jeu de données ornithologique.",
+                descriptive_stats.render,
             ),
             "Corrélation et régression": ModuleSpec(
                 "Quantifier une relation entre deux variables ornithologiques.",

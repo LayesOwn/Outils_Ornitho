@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path so modules/ and utils/ are importable
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 import streamlit as st
 
-from app.config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
+from config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
 from utils.ui import apply_global_style, render_header, render_home_page, render_sidebar, render_teacher_banner
 
 
