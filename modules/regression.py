@@ -47,8 +47,15 @@ def render(context: dict) -> None:
         data = wing_mass_dataset(seed=int(seed), n=n, noise=noise)
         x_col, y_col = "Longueur de l'aile (mm)", "Masse corporelle (g)"
 
+    if len(data) < 3:
+        st.warning("Pas assez d'observations valides (minimum 3) pour ajuster une régression.")
+        return
+
     x = data[x_col]
     y = data[y_col]
+    if x.std() == 0:
+        st.warning(f"La colonne **{x_col}** est constante — régression impossible.")
+        return
     slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
     data["Prédiction"] = intercept + slope * x
 

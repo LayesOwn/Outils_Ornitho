@@ -111,6 +111,9 @@ def render(context: dict) -> None:
             for g in groups
             if len(data.loc[data[hab_label] == g, val_label].dropna()) >= 2
         ]
+        if len(valid_series) < 2:
+            st.warning("Il faut au moins 2 groupes avec 2 observations chacun pour effectuer l'ANOVA / Kruskal-Wallis.")
+            return
         anova_f, anova_p = stats.f_oneway(*valid_series)
         kruskal_h, kruskal_p = stats.kruskal(*valid_series)
         # Eta-squared (effect size for ANOVA)

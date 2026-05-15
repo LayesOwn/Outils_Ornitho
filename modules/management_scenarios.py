@@ -4,7 +4,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from simulations.pva_engine import simulate_pva, summarize_pva
+try:
+    from simulations.pva_engine import simulate_pva, summarize_pva
+except ImportError as _pva_err:
+    import streamlit as st
+    st.error(f"Module PVA non disponible : {_pva_err}")
+    st.stop()
 from utils.ui import explain, learning_notes, module_intro, section, style_figure
 
 

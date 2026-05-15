@@ -79,8 +79,14 @@ def render(context: dict) -> None:
             strip_width = st.number_input("Demi-largeur W (m)", min_value=1.0, value=200.0, step=10.0)
             transect_length = st.number_input("Longueur totale des transects (m)", min_value=100.0, value=3000.0, step=100.0)
             n_transects = st.number_input("Nombre de transects", min_value=1, value=6)
-        distances = data_src[dist_col].dropna().values.astype(float)
-        distances = distances[(distances >= 0) & (distances <= strip_width)]
+        raw_distances = data_src[dist_col].dropna().values.astype(float)
+        distances = raw_distances[(raw_distances >= 0) & (raw_distances <= strip_width)]
+        n_filtered = len(raw_distances) - len(distances)
+        if len(raw_distances) > 0 and n_filtered / len(raw_distances) > 0.5:
+            st.warning(
+                f"{n_filtered}/{len(raw_distances)} distances ({100*n_filtered/len(raw_distances):.0f}%) "
+                f"écartées car > W = {strip_width:.0f} m. Vérifiez la valeur de W ou les données."
+            )
         true_density = None
     else:
         with left:

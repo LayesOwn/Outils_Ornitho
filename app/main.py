@@ -59,7 +59,13 @@ def main() -> None:
         st.sidebar.caption(modules_in_section[module_name].description)
 
         with st.container():
-            modules_in_section[module_name].renderer(context)
+            try:
+                modules_in_section[module_name].renderer(context)
+            except Exception as exc:
+                st.error(f"Erreur dans le module **{module_name}** : {exc}")
+                with st.expander("Détail de l'erreur"):
+                    import traceback
+                    st.code(traceback.format_exc(), language="python")
 
 
 if __name__ == "__main__":

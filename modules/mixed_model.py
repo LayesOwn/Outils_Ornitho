@@ -33,37 +33,95 @@ def simulate_mixed_data(
 
 def fit_mixed_model(data: pd.DataFrame, fixed_col: str, response_col: str, group_col: str) -> dict:
     try:
+        import statsmodels.api as sm
         import statsmodels.formula.api as smf
+        from scipy import stats as _sp
     except ImportError:
         return {"error": "statsmodels non disponible — pip install statsmodels"}
 
-    safe = data[[response_col, fixed_col, group_col]].dropna().copy()
-    safe.columns = ["_Y", "_X", "_G"]
+    # ── Extraction sécurisée par copie directe des valeurs (évite tout problème
+    #    de noms dupliqués ou de types inattendus dans le DataFrame source) ──────
     try:
-        result = smf.mixedlm("_Y ~ _X", safe, groups=safe["_G"]).fit(reml=True, disp=False)
+        y_vals = pd.to_numeric(data[response_col], errors="coerce").values
+        x_vals = pd.to_numeric(data[fixed_col],    errors="coerce").values
+        g_vals = data[group_col].astype(str).values
+    except Exception as exc:
+        return {"error": f"Impossible d'extraire les colonnes : {exc}"}
+
+    # DataFrame propre avec noms neutres — aucun risque de collision
+    sub = pd.DataFrame({"_Y": y_vals, "_X": x_vals, "_G": g_vals}).dropna()
+
+    # ── Validations ──────────────────────────────────────────────────────────
+    if sub["_G"].nunique() < 2:
+        return {"error": "Il faut au moins 2 groupes distincts pour ajuster un modèle mixte."}
+    if len(sub) < 5:
+        return {"error": "Moins de 5 observations valides — impossible d'ajuster le modèle."}
+    if sub["_X"].std() == 0:
+        return {"error": f"La variable '{fixed_col}' est constante — régression impossible."}
+
+    try:
+        result = smf.mixedlm("_Y ~ _X", sub, groups=sub["_G"]).fit(reml=True, disp=False)
+
+        # ── Effets fixes : on travaille uniquement sur fe_params ─────────
+        fe_params = result.fe_params          # toujours 2 éléments : Intercept + _X
+        n_fe      = len(fe_params)
+
+        # SE : bse_fe d'abord, sinon on coupe bse aux n_fe premiers éléments
+        try:
+            bse_arr = np.asarray(result.bse_fe)[:n_fe]
+        except AttributeError:
+            bse_arr = np.asarray(result.bse)[:n_fe]
+
+        # p-values : on filtre explicitement sur l'index de fe_params
+        pv_series = result.pvalues
+        if hasattr(pv_series, "reindex"):
+            pv_series = pv_series.reindex(fe_params.index)
+        pv_arr = np.asarray(pv_series)[:n_fe]
+
+        coef_arr = np.asarray(fe_params)
+        z_arr    = np.where(bse_arr != 0, coef_arr / bse_arr, 0.0)
+
+        labels = ["Intercept", fixed_col][:n_fe]
 
         fe = pd.DataFrame({
-            "Coef.": result.fe_params.round(4),
-            "SE": result.bse_fe.round(4),
-            "z": (result.fe_params / result.bse_fe).round(3),
-            "p": result.pvalues.round(4),
-        })
-        fe.index = ["Intercept", fixed_col][: len(fe)]
+            "Coef.": coef_arr.round(4),
+            "SE":    bse_arr.round(4),
+            "z":     z_arr.round(3),
+            "p":     [f"{float(v):.2e}" if float(v) < 0.0001 else round(float(v), 4)
+                      for v in pv_arr],
+        }, index=labels)
+        fe.index.name = "Paramètre"
 
-        var_re = float(result.cov_re.iloc[0, 0])
+        # ── Composantes de variance ──────────────────────────────────────
+        try:
+            var_re = float(result.cov_re.iloc[0, 0])
+        except Exception:
+            var_re = 0.0
         var_res = float(result.scale)
         icc = var_re / (var_re + var_res) if (var_re + var_res) > 0 else 0.0
 
+        # ── AIC (fallback manuel si NaN) ─────────────────────────────────
+        aic_val = float(result.aic)
+        if np.isnan(aic_val):
+            aic_val = -2.0 * float(result.llf) + 2.0 * n_fe
+
+        # ── Nombre de groupes ────────────────────────────────────────────
+        try:
+            n_groups = int(result.ngroups)
+        except AttributeError:
+            n_groups = int(sub["_G"].nunique())
+
         return {
             "fixed_effects": fe,
-            "var_re": round(var_re, 4),
-            "var_res": round(var_res, 4),
-            "icc": round(icc, 4),
-            "fitted": result.fittedvalues.values,
-            "resid": result.resid.values,
-            "aic": round(float(result.aic), 2),
-            "n_groups": result.ngroups,
+            "var_re":   round(var_re, 4),
+            "var_res":  round(var_res, 4),
+            "icc":      round(icc, 4),
+            "fitted":   np.asarray(result.fittedvalues),
+            "resid":    np.asarray(result.resid),
+            "aic":      round(aic_val, 2),
+            "n_groups": n_groups,
         }
+
     except Exception as exc:
         return {"error": f"Échec d'ajustement : {exc}"}
 
