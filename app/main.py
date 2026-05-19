@@ -10,7 +10,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
-from config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
+from app.config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
 from utils.ui import apply_global_style, render_header, render_home_page, render_sidebar, render_teacher_banner
 
 
