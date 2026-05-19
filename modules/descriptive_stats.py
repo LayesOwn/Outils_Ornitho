@@ -25,9 +25,9 @@ def render(context: dict) -> None:
         None if is_data else "Exemple : abondance observée sur des points d'écoute.",
     )
     module_intro(
-        "Les statistiques descriptives résument un jeu de données avec des indicateurs simples : moyenne, médiane, dispersion, minimum et maximum.",
-        "Elles servent à comprendre rapidement la structure d'un jeu de données avant d'appliquer un modèle ou un test.",
-        "En ornithologie, elles permettent de résumer des abondances, masses, tailles d'ailes, richesses spécifiques ou succès reproducteurs.",
+        "Les statistiques descriptives résument un jeu de données avec des indicateurs de tendance centrale (moyenne, médiane) et de dispersion (écart-type, IQR, CV). Elles s'appliquent aux variables quantitatives continues (masse, taille d'aile) ou discrètes (abondance).",
+        "Elles servent à comprendre la structure d'un jeu de données avant tout test ou modèle : identifier la forme de la distribution, repérer les valeurs aberrantes et choisir les bons indicateurs.",
+        "En ornithologie, elles permettent de résumer des abondances par point d'écoute, des masses corporelles, des richesses spécifiques ou des succès reproducteurs, et de détecter des sites atypiques.",
     )
 
     left, right = st.columns([0.85, 1.55])
@@ -70,19 +70,95 @@ def render(context: dict) -> None:
         style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
+    mean_val = desc["mean"]
+    median_val = desc["50%"]
+    std_val = desc["std"]
+    q1 = desc["25%"]
+    q3 = desc["75%"]
+    iqr = q3 - q1
+    cv = (std_val / mean_val * 100) if mean_val != 0 else 0.0
+
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Moyenne", f"{desc['mean']:.1f}")
-    c2.metric("Médiane", f"{desc['50%']:.1f}")
-    c3.metric("Écart-type", f"{desc['std']:.1f}")
+    c1.metric("Moyenne", f"{mean_val:.1f}")
+    c2.metric("Médiane", f"{median_val:.1f}")
+    c3.metric("Écart-type", f"{std_val:.1f}")
     c4.metric("Maximum", f"{desc['max']:.0f}")
+
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Q1 (25 %)", f"{q1:.1f}")
+    c6.metric("Q3 (75 %)", f"{q3:.1f}")
+    c7.metric("IQR", f"{iqr:.1f}")
+    c8.metric("CV (%)", f"{cv:.1f}")
+
+    diff = mean_val - median_val
+    if abs(diff) < 0.05 * max(mean_val, 0.001):
+        asym_msg = "la distribution est approximativement symétrique"
+    elif diff > 0:
+        asym_msg = (
+            f"la moyenne ({mean_val:.1f}) > médiane ({median_val:.1f}) : distribution "
+            "asymétrique à droite — quelques sites très riches tirent la moyenne vers le haut"
+        )
+    else:
+        asym_msg = (
+            f"la moyenne ({mean_val:.1f}) < médiane ({median_val:.1f}) : distribution "
+            "asymétrique à gauche — quelques très petites valeurs abaissent la moyenne"
+        )
+    cv_level = "faible (distribution homogène entre sites)" if cv < 15 else "modérée" if cv < 30 else "forte — forte hétérogénéité spatiale"
     explain(
-        f"La moyenne est {desc['mean']:.1f}, tandis que la médiane est {desc['50%']:.1f}. "
-        "Un écart important entre ces valeurs indique une distribution asymétrique, fréquente dans les comptages d'oiseaux."
+        f"{asym_msg.capitalize()}. "
+        f"Le coefficient de variation est **{cv:.1f} %** : variabilité {cv_level}. "
+        f"L'IQR = {iqr:.1f} représente l'étendue des 50 % centraux des valeurs."
     )
+
+    lower_fence = q1 - 1.5 * iqr
+    upper_fence = q3 + 1.5 * iqr
+    outliers = data["Abondance"][(data["Abondance"] < lower_fence) | (data["Abondance"] > upper_fence)]
+
+    with st.expander("Cours : Indicateurs statistiques clés"):
+        st.markdown("#### Types de variables quantitatives")
+        st.markdown(
+            "| Type | Description | Exemples ornithologiques |\n"
+            "|------|-------------|-------------------------|\n"
+            "| **Discrète** | Valeurs entières, comptage | Nombre d'individus, d'œufs, d'espèces |\n"
+            "| **Continue** | Valeurs réelles | Masse (g), longueur de l'aile (mm), distance |\n"
+        )
+        st.markdown("#### Tendance centrale : moyenne vs médiane")
+        st.markdown(
+            "La **moyenne** est sensible aux valeurs extrêmes. La **médiane** (Q2) est robuste. "
+            "Leur comparaison révèle la forme de la distribution :\n\n"
+            "- Moyenne ≈ Médiane → distribution symétrique\n"
+            "- Moyenne > Médiane → asymétrie à droite (longue queue vers les grandes valeurs)\n"
+            "- Moyenne < Médiane → asymétrie à gauche\n\n"
+            "**En ornithologie**, les comptages sont presque toujours asymétriques à droite : "
+            "la plupart des sites ont peu d'individus et quelques sites concentrent les effectifs."
+        )
+        st.markdown("#### Coefficient de variation (CV)")
+        st.markdown(
+            "CV = (écart-type / moyenne) × 100. Permet de comparer la dispersion quelle que soit l'unité.\n\n"
+            "| CV | Interprétation |\n"
+            "|----|----------------|\n"
+            "| < 15 % | Faible variabilité — population homogène entre sites |\n"
+            "| 15 – 30 % | Variabilité modérée — variation naturelle normale |\n"
+            "| ≥ 30 % | Forte variabilité — forte hétérogénéité spatiale |\n"
+        )
+        st.markdown("#### Quartiles et détection des valeurs aberrantes")
+        st.markdown(
+            "- **Q1** = 25 % des valeurs sont en-dessous  \n"
+            "- **Q2** = médiane = 50 %  \n"
+            "- **Q3** = 75 %  \n"
+            "- **IQR** = Q3 − Q1 (étendue inter-quartile, couvre 50 % des données centrales)\n\n"
+            "**Règle de Tukey :** une valeur est potentiellement aberrante si elle dépasse "
+            "Q3 + 1,5 × IQR ou est en-dessous de Q1 − 1,5 × IQR."
+        )
+        st.info(
+            f"Pour ce jeu de données — borne inférieure : {lower_fence:.1f} | borne supérieure : {upper_fence:.1f}. "
+            f"**{len(outliers)} valeur(s) potentiellement aberrante(s) détectée(s)**."
+        )
+
     learning_notes(
-        "Toujours regarder la distribution avant de conclure.",
-        "La moyenne seule peut masquer des sites très riches ou très pauvres.",
-        None if is_data else "Augmente l'agrégation spatiale et observe l'effet sur la moyenne et la médiane.",
+        "Toujours examiner la distribution (histogramme + boxplot) et comparer moyenne/médiane avant de conclure. Calculer le CV pour évaluer l'homogénéité entre sites.",
+        "La moyenne est sensible aux valeurs aberrantes. Sur des comptages d'oiseaux, la distribution est souvent asymétrique à droite — la médiane est alors plus représentative.",
+        None if is_data else "Augmente l'agrégation spatiale et observe comment la moyenne, la médiane et le CV évoluent. À partir de quel CV parle-t-on de forte hétérogénéité ?",
     )
 
     with st.expander("Données et résumé par habitat"):

@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def _validate_growth_inputs(n0: float, k: float, years: int) -> None:
@@ -105,9 +105,39 @@ def render(context: dict) -> None:
     )
 
     teacher_note(
-        "Équations : exponentiel N(t)=N0·exp(rt) ; logistique "
-        "N(t)=K/(1+((K-N0)/N0)·exp(-rt)). "
-        "Forme différentielle : dN/dt = r*N*(1 - N/K).",
+        "Relation taux : r (instantané, continu) et λ (discret, annuel) sont liés par r = ln(λ), λ = eʳ. "
+        "Le taux r = b − d (natalité − mortalité instantanées). "
+        "La croissance logistique atteint son maximum de dN/dt lorsque N = K/2 : "
+        "c'est le rendement maximal soutenu MSY = rK/4, concept central en gestion des populations exploitées. "
+        "L'effet Allee désigne un mécanisme de rétroaction positive à faible effectif (coopération reproductrice, "
+        "détection des prédateurs) : en dessous du seuil A, dN/dt < 0 malgré N > 0, "
+        "ce qui crée un risque d'extinction même sans surexploitation.",
+        context,
+    )
+    teacher_formula(
+        "Croissance exponentielle et logistique — formes différentielles",
+        r"\frac{dN}{dt} = rN \quad\text{(exponentiel)}"
+        r"\qquad \frac{dN}{dt} = rN\!\left(1 - \frac{N}{K}\right) \quad\text{(logistique)}",
+        context,
+    )
+    teacher_formula(
+        "Rendement maximal soutenu (MSY) — gestion des populations exploitées",
+        r"N^* = \frac{K}{2} \;\Rightarrow\; \left.\frac{dN}{dt}\right|_{\max} = \frac{rK}{4} = \text{MSY}",
+        context,
+    )
+    teacher_formula(
+        "Effet Allee — modèle logistique avec seuil A",
+        r"\frac{dN}{dt} = rN\!\left(1 - \frac{N}{K}\right)\!\left(\frac{N}{A} - 1\right) \quad (A < K)",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Confondre r (taux instantané continu) et λ (taux discret annuel) : r = ln(λ) et λ = eʳ, ils ne sont pas égaux.",
+            "Croire que N₀ < K garantit la convergence vers K : si r < 0, la population décline vers 0 quelle que soit la valeur initiale.",
+            "Interpréter K comme une constante biologique : K dépend de l'habitat, de la saison et peut évoluer avec le climat.",
+            "Confondre MSY (N = K/2) avec l'équilibre K : exploiter jusqu'à K/2 maximise le prélèvement soutenu, pas l'effectif.",
+            "Négliger l'effet Allee dans les petites populations fragmentées : le modèle logistique simple prédit une récupération même à N très faible, ce qui surestime la résilience.",
+        ],
         context,
     )
 

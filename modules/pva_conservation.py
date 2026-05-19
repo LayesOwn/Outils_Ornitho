@@ -10,7 +10,7 @@ except ImportError as _pva_err:
     import streamlit as st
     st.error(f"Module PVA non disponible : {_pva_err}")
     st.stop()
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 @st.cache_data
@@ -56,7 +56,47 @@ def render(context: dict) -> None:
     c3.metric("Moyenne finale", f"{summary['mean_final']:.0f}")
     level = "élevé" if summary["risk"] > 0.3 else "modéré" if summary["risk"] > 0.1 else "faible"
     explain(f"Le risque estimé est {level} : {100 * summary['risk']:.1f} % des trajectoires atteignent le seuil de quasi-extinction.")
-    teacher_note("Cette PVA est pédagogique : elle ne remplace pas un modèle démographique calibré avec données de survie, fécondité et dispersion.", context)
+    teacher_note(
+        "Cette PVA simule des trajectoires stochastiques N(t+1) = N(t)·exp(r̄ + εₜ) avec εₜ ~ N(0, σ²ₑ). "
+        "Deux sources de stochasticité : (1) stochasticité démographique (variance binomiale des naissances/décès, "
+        "proportionnelle à 1/√N — critique pour N < 50) ; (2) stochasticité environnementale (variance inter-annuelle de r, "
+        "σ²ₑ — domine pour les grandes populations). "
+        "Règle MVP de Franklin (1980) : 50 individus évitent la dépression de consanguinité à court terme ; "
+        "500 maintiennent le potentiel évolutif (Ne/N ≈ 0,1 pour les oiseaux). "
+        "Révisée à 100/1000 par Frankham (2014) pour tenir compte des effets génétiques à long terme. "
+        "Continuum slow-fast : espèces 'slow' (rapaces, albatros — longue durée de vie, faible fécondité) "
+        "ont λ très sensible à la survie adulte ; espèces 'fast' (passereaux annuels) plus sensibles aux fécondités. "
+        "Modèle de Levins : f* = 1 − e/c (fraction de parcelles occupées à l'équilibre) — "
+        "métapopulation viable seulement si c > e.",
+        context,
+    )
+    teacher_formula(
+        "Modèle stochastique discret (base de la PVA pédagogique)",
+        r"N(t+1) = \max\!\Bigl(0,\;\min\!\bigl(K,\;N(t)\cdot e^{\bar{r}+\varepsilon_t} - \text{pertes}\bigr)\Bigr)"
+        r"\qquad \varepsilon_t \sim \mathcal{N}(0,\,\sigma_e^2)",
+        context,
+    )
+    teacher_formula(
+        "Modèle de métapopulation de Levins (Chap. 7, ORNI 422)",
+        r"\frac{df}{dt} = c\,f\,(1-f) - e\,f \qquad f^* = 1 - \frac{e}{c}",
+        context,
+    )
+    teacher_formula(
+        "Règle MVP — Franklin (1980) révisée Frankham (2014)",
+        r"\text{MVP}_{\text{court terme}} = 50\;\text{ind.}\;(\text{consanguinité})"
+        r"\qquad \text{MVP}_{\text{long terme}} = 500{-}1000\;\text{ind.}\;(\text{potentiel évolutif})",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Traiter le risque estimé par PVA comme une probabilité précise : l'incertitude sur r̄ et σ peut facilement doubler ou tripler ce risque.",
+            "Confondre stochasticité démographique (variance des événements individuels) et environnementale (variance inter-annuelle de r) : effets très différents selon la taille de population.",
+            "Oublier la consanguinité et les effets génétiques dans une PVA simple : ils amplifient le risque d'extinction pour N < 50.",
+            "Interpréter 'risque = 0 %' comme 'population sûre' : sur un court horizon de simulation, les événements rares ne se produisent pas encore.",
+            "Appliquer la règle 50/500 sans tenir compte de l'espèce : la dispersion, le sex-ratio et la structure sociale modifient fortement la taille efficace Ne.",
+        ],
+        context,
+    )
     learning_notes(
         "Le risque dépend autant de la variance que de la croissance moyenne.",
         "Une PVA simplifiée peut sous-estimer les événements rares, la consanguinité ou les catastrophes.",

@@ -90,20 +90,79 @@ def render(context: dict) -> None:
     c3.metric("p-value", f"{p_value:.3g}")
 
     direction = "positive" if slope > 0 else "négative"
-    strength = "forte" if abs(r_value) > 0.7 else "modérée" if abs(r_value) > 0.4 else "faible"
-    explain(
-        f"La relation est {strength} et {direction} : une unité supplémentaire de {x_col} "
-        f"est associée à {slope:.3g} unité de {y_col}. "
-        f"Le modèle explique {100 * r_value**2:.1f} % de la variation observée."
+    abs_r = abs(r_value)
+    if abs_r >= 0.9:
+        strength_label = "très forte"
+    elif abs_r >= 0.7:
+        strength_label = "forte"
+    elif abs_r >= 0.5:
+        strength_label = "assez forte"
+    elif abs_r >= 0.3:
+        strength_label = "modérée"
+    else:
+        strength_label = "faible"
+
+    r2_pct = 100 * r_value ** 2
+    r2_quality = (
+        "excellente" if r2_pct >= 81
+        else "bonne" if r2_pct >= 49
+        else "acceptable" if r2_pct >= 25
+        else "faible"
     )
+
+    explain(
+        f"**r = {r_value:.3f}** : corrélation {strength_label} et {direction}. "
+        f"Une unité supplémentaire de {x_col} est associée à **{slope:.3g}** unité de {y_col}. "
+        f"**R² = {r_value**2:.3f}** ({r2_pct:.1f} %) : qualité de prédiction {r2_quality} — "
+        f"le modèle linéaire explique {r2_pct:.1f} % de la variabilité de {y_col}."
+    )
+
+    with st.expander("Cours : Interpréter r de Pearson et R²"):
+        st.markdown("#### Grille d'interprétation de r de Pearson")
+        st.markdown(
+            "Le coefficient r mesure l'intensité et le sens d'une relation **linéaire** entre deux variables (−1 ≤ r ≤ +1).\n\n"
+            "| |r| | Interprétation | Exemple ornithologique |\n"
+            "|-------|----------------|------------------------|\n"
+            "| < 0,3 | Faible | Pas de relation claire |\n"
+            "| 0,3 – 0,5 | Modérée | Lien tarsométatarse / masse |\n"
+            "| 0,5 – 0,7 | Assez forte | Longueur du bec / taille de proie |\n"
+            "| 0,7 – 0,9 | Forte | Longueur aile / masse corporelle |\n"
+            "| ≥ 0,9 | Très forte | Mesures répétées du même individu |\n"
+        )
+        st.markdown("#### Interprétation de R²")
+        st.markdown(
+            "R² = r² : proportion de la variance de Y expliquée par le modèle linéaire.\n\n"
+            "| R² | Qualité du modèle |\n"
+            "|----|-------------------|\n"
+            "| ≥ 81 % | Excellente |\n"
+            "| 49 – 81 % | Bonne |\n"
+            "| 25 – 49 % | Acceptable |\n"
+            "| < 25 % | Faible — chercher d'autres variables explicatives |\n"
+        )
+        st.markdown("#### Équation de régression linéaire")
+        st.markdown(
+            "Le modèle s'écrit **Y = a + b × X** où :\n\n"
+            f"- **b = {slope:.4g}** (pente) : variation de {y_col} pour +1 unité de {x_col}\n"
+            f"- **a = {intercept:.4g}** (ordonnée à l'origine)\n\n"
+            f"→ Équation ajustée : **{y_col} = {intercept:.3g} + {slope:.3g} × {x_col}**\n\n"
+            "**Résidus** : écart entre valeur observée et valeur prédite. "
+            "Des résidus aléatoirement répartis de part et d'autre de zéro confirment que le modèle linéaire est approprié. "
+            "Un résidu systématique (courbe, entonnoir) signale une hypothèse violée."
+        )
+        st.info(
+            "Corrélation ≠ causalité. Une corrélation forte peut résulter d'une variable confondante "
+            "(ex. : longueur de l'aile et masse toutes deux liées à l'âge ou au sexe)."
+        )
+
     learning_notes(
-        "R² indique la proportion de variation expliquée par le modèle linéaire.",
-        "Une corrélation ne prouve pas une causalité et peut être influencée par des variables cachées.",
-        None if is_data else "Augmente la variabilité individuelle et observe l'effet sur R² et la p-value.",
+        "Vérifier toujours la significativité (p-value) ET la taille d'effet (R²). Un R² > 49 % indique un modèle à bonne capacité prédictive.",
+        "Une corrélation forte ne prouve pas de causalité. R² mesure la linéarité : une relation courbe peut donner un r faible même avec un lien réel.",
+        None if is_data else "Augmente la variabilité individuelle et observe à partir de quel niveau R² devient inférieur à 25 %.",
     )
     teacher_note(
         f"Équation ajustée : {y_col} = {intercept:.3g} + {slope:.3g} × {x_col}. "
-        "Faire distinguer corrélation, causalité et qualité prédictive.",
+        "Faire distinguer corrélation, causalité et qualité prédictive. "
+        "Montrer le calcul de b = Cov(X,Y)/Var(X) et a = ȳ − b×x̄.",
         context,
     )
 

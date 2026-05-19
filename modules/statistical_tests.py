@@ -34,9 +34,9 @@ def render(context: dict) -> None:
         None if is_data else "Exemple : comparaison du succès reproducteur entre deux habitats.",
     )
     module_intro(
-        "Un test statistique évalue si une différence observée est compatible avec le hasard sous une hypothèse nulle.",
-        "Il sert à formaliser une comparaison entre groupes, tout en tenant compte de la variabilité d'échantillonnage et du respect des hypothèses.",
-        "En ornithologie, il aide à comparer des habitats, des années, des traitements de conservation ou des pressions anthropiques.",
+        "Un test statistique évalue si une différence observée entre groupes est compatible avec le hasard (H₀) ou si elle est trop grande pour être due au seul hasard (H₁). Il produit une p-value : probabilité d'obtenir un écart au moins aussi grand si H₀ était vraie.",
+        "Il sert à formaliser une comparaison tout en maîtrisant le risque de se tromper : risque α (faux positif, seuil = 0,05) et risque β (faux négatif). La normalité des données détermine le choix du test.",
+        "En ornithologie, il permet de comparer le succès reproducteur entre habitats, l'abondance selon les années, ou l'effet d'une mesure de conservation — en distinguant une vraie différence biologique du bruit d'échantillonnage.",
     )
 
     left, right = st.columns([0.9, 1.5])
@@ -124,6 +124,49 @@ def render(context: dict) -> None:
         ss_total = sum(np.sum((s - np.mean(np.concatenate(valid_series))) ** 2) for s in valid_series)
         eta2 = float(ss_between / ss_total) if ss_total > 0 else 0.0
 
+    with st.expander("Cours : Logique des tests statistiques et choix du test"):
+        st.markdown("#### Hypothèses H₀ et H₁")
+        st.markdown(
+            "- **H₀ (hypothèse nulle)** : il n'y a pas de différence entre les groupes (différence = 0 en population)\n"
+            "- **H₁ (hypothèse alternative)** : il existe une différence réelle entre les groupes\n\n"
+            "Le test calcule la probabilité d'observer un écart au moins aussi grand **si H₀ était vraie**. "
+            "Cette probabilité s'appelle la **p-value**.\n\n"
+            "| p-value | Décision | Interprétation |\n"
+            "|---------|----------|----------------|\n"
+            "| < 0,05 | Rejeter H₀ | La différence est significative — peu probable par hasard |\n"
+            "| ≥ 0,05 | Ne pas rejeter H₀ | Aucune preuve suffisante d'une différence réelle |\n"
+        )
+        st.markdown("#### Risques d'erreur")
+        st.markdown(
+            "- **Risque α (erreur de type I)** : rejeter H₀ alors qu'elle est vraie (faux positif). Fixé à α = 0,05 en biologie.\n"
+            "- **Risque β (erreur de type II)** : ne pas rejeter H₀ alors qu'H₁ est vraie (faux négatif). "
+            "Dépend de la taille d'échantillon et de la taille d'effet.\n"
+        )
+        st.markdown("#### Arbre de décision — quel test choisir ?")
+        st.markdown(
+            "```\n"
+            "Comparer des moyennes/médianes\n"
+            "│\n"
+            "├── 2 groupes\n"
+            "│   ├── Données normales (Shapiro p > 0,05) → Test t de Welch\n"
+            "│   └── Non-normales ou petits effectifs (n < 20) → Mann-Whitney U\n"
+            "│\n"
+            "└── 3 groupes ou plus\n"
+            "    ├── Données normales → ANOVA à un facteur\n"
+            "    │   └── Si p < 0,05 → Tests post-hoc (Tukey HSD)\n"
+            "    └── Non-normales → Kruskal-Wallis\n"
+            "        └── Si p < 0,05 → Tests de Dunn (Bonferroni)\n"
+            "```\n"
+        )
+        st.markdown("#### Taille d'effet : au-delà de la p-value")
+        st.markdown(
+            "La p-value indique si un effet **existe**, pas s'il est biologiquement **important**.\n\n"
+            "| Indicateur | Faible | Modéré | Fort |\n"
+            "|-----------|--------|--------|------|\n"
+            "| d de Cohen (2 groupes) | 0,2 | 0,5 | 0,8 |\n"
+            "| η² (ANOVA) | 0,01 | 0,06 | 0,14 |\n"
+        )
+
     # ---------- Tabs ----------
     tab_labels = ["Normalité", "Test paramétrique", "Test non-paramétrique", "Export"]
     tabs = st.tabs(tab_labels)
@@ -131,6 +174,11 @@ def render(context: dict) -> None:
     # --- Tab 0 : Normalité ---
     with tabs[0]:
         st.markdown("#### Test de Shapiro-Wilk (H₀ : distribution normale)")
+        st.caption(
+            "Le test de Shapiro-Wilk vérifie si les données d'un groupe suivent une loi normale. "
+            "Si p > 0,05 → on ne rejette pas H₀ : la distribution est compatible avec la normalité → test paramétrique possible. "
+            "Si p ≤ 0,05 → les données s'écartent significativement de la normalité → utiliser le test non-paramétrique."
+        )
         sw_rows = [
             {
                 "Groupe": g,
@@ -310,7 +358,7 @@ def render(context: dict) -> None:
             st.download_button("Exporter le résumé PDF", pdf, "orni_lab_tests.pdf", "application/pdf")
 
     learning_notes(
-        "Toujours vérifier la normalité avant de choisir entre test paramétrique et non-paramétrique.",
-        "Une p-value ne mesure pas l'importance biologique : une grande taille d'échantillon peut rendre trivial n'importe quel écart.",
-        None if is_data else "Réduis la taille d'échantillon : à partir de quel n la conclusion change-t-elle ?",
+        "Démarche en 4 étapes : (1) Poser H₀/H₁, (2) Vérifier la normalité (Shapiro-Wilk), (3) Choisir le test adapté, (4) Interpréter p-value ET taille d'effet.",
+        "Une p-value significative ne prouve pas une importance biologique — un grand n peut rendre significative une différence négligeable. Toujours rapporter la taille d'effet (d de Cohen ou η²).",
+        None if is_data else "Réduis la taille d'échantillon progressivement : à partir de quel n la conclusion change-t-elle ? Observe comment la p-value augmente quand n diminue.",
     )

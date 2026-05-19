@@ -7,7 +7,7 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import CMR_SCENARIOS
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def lincoln_petersen(marked: int, captured: int, recaptured: int) -> tuple[float, float, float]:
@@ -74,7 +74,37 @@ def render(context: dict) -> None:
         "Diminue R et observe comment l'intervalle de confiance s'élargit.",
     )
     teacher_note(
-        "Hypothèses clés : population fermée, mélange homogène, marques non perdues, probabilités de capture similaires.",
+        "Quatre hypothèses du Lincoln-Petersen : (1) population fermée entre les deux sessions, "
+        "(2) mélange homogène des individus marqués dans la population, "
+        "(3) marques non perdues, non déposées, détectables, "
+        "(4) probabilités de capture identiques pour tous les individus (pas de hétérogénéité). "
+        "La correction de Chapman est recommandée quand R < 7 : elle est sans biais alors que l'estimateur original est biaisé positivement. "
+        "En population ouverte (sessions multiples), le modèle CJS estime la survie apparente φᵢ et la probabilité de recapture pᵢ. "
+        "Jolly-Seber ajoute l'estimation de la taille de population. "
+        "Le robust design de Pollock combine des sessions primaires (population ouverte) "
+        "et des sessions secondaires rapprochées (population fermée) pour estimer φ, p, et N simultanément.",
+        context,
+    )
+    teacher_formula(
+        "Estimateurs Lincoln-Petersen et Chapman (Chap. 6, ORNI 422)",
+        r"\hat{N} = \frac{M \cdot C}{R} \quad\text{(LP original)}"
+        r"\qquad \hat{N}_C = \frac{(M+1)(C+1)}{R+1} - 1 \quad\text{(Chapman, sans biais)}",
+        context,
+    )
+    teacher_formula(
+        "Variance et intervalle de confiance de Chapman",
+        r"\widehat{\mathrm{Var}}(\hat{N}_C) = \frac{(M+1)(C+1)(M-R)(C-R)}{(R+1)^2\,(R+2)}"
+        r"\qquad \mathrm{IC}_{95\%} = \hat{N}_C \pm 1{,}96\,\hat{\sigma}",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Appliquer Lincoln-Petersen sur une population ouverte : si des individus naissent, meurent ou migrent entre M et C, N est surestimé.",
+            "Ignorer la perte de bagues : si des bagues tombent entre les sessions, R est sous-estimé et N surestimé.",
+            "Confondre φ (survie apparente CJS) et la survie vraie : φ = survie × fidélité au site — la dispersion est confondue avec la mortalité.",
+            "Utiliser l'estimateur LP original quand R < 7 sans correction Chapman : biais positif important.",
+            "Croire que le taux de recapture observé (R/C) est la probabilité de recapture p : ils coïncident seulement si toutes les hypothèses sont vérifiées.",
+        ],
         context,
     )
 

@@ -8,7 +8,7 @@ import streamlit as st
 from scipy.integrate import solve_ivp
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def lotka_volterra_system(_t: float, state: list[float], alpha: float, beta: float, delta: float, gamma: float) -> list[float]:
@@ -88,8 +88,42 @@ def render(context: dict) -> None:
         "Augmente la mortalité des prédateurs et observe l'effet sur l'amplitude des cycles.",
     )
     teacher_note(
-        "Le modèle est volontairement simple : il ne contient ni capacité de charge, ni saisonnalité, "
-        "ni refuge spatial. Ces extensions sont pertinentes pour un futur module avancé.",
+        "Notation ORNI 422 : α = croissance intrinsèque des proies, a = taux de prédation (β dans le code), "
+        "e = efficacité de conversion (δ), m = mortalité des prédateurs (γ). "
+        "L'isocline nulle proie (dN/dt = 0) donne P = r/a — droite horizontale dans le plan (N, P). "
+        "L'isocline nulle prédateur (dP/dt = 0) donne N = m/(ea) — droite verticale. "
+        "Leur intersection est l'équilibre, qui est un centre conservatif (oscillations permanentes sans amortissement). "
+        "La réponse fonctionnelle de Holling décrit le comportement de chasse : "
+        "Type I (linéaire, pas de satiation), Type II (hyperbolique, satiation), Type III (sigmoïde, apprentissage). "
+        "En ornithologie : Type II est la plus commune chez les rapaces spécialistes.",
+        context,
+    )
+    teacher_formula(
+        "Système de Lotka-Volterra (Chap. 5, ORNI 422)",
+        r"\frac{dN}{dt} = rN - aNP \qquad \frac{dP}{dt} = -mP + eaNP",
+        context,
+    )
+    teacher_formula(
+        "Équilibre — intersection des isoclines nulles",
+        r"N^* = \frac{m}{e\,a} \qquad P^* = \frac{r}{a}",
+        context,
+    )
+    teacher_formula(
+        "Réponses fonctionnelles de Holling",
+        r"f_{\mathrm{I}}(N)= aN \qquad"
+        r"f_{\mathrm{II}}(N)= \frac{aN}{1+ahN} \qquad"
+        r"f_{\mathrm{III}}(N)= \frac{aN^2}{1+ahN^2}",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Confondre les paramètres : dans ce module, α = croissance proie, β = taux de prédation — "
+            "la notation varie selon les manuels (parfois r, a, e, m).",
+            "Croire que l'équilibre LV classique est stable : c'est un centre conservatif — une perturbation produit une nouvelle orbite fermée, pas un retour au point fixe.",
+            "Ignorer l'absence de capacité de charge pour les proies : sans K, les proies peuvent croître indéfiniment si le prédateur disparaît.",
+            "Confondre réponse fonctionnelle (f(N), comportement individuel du prédateur) et réponse numérique (changement d'effectif du prédateur).",
+            "Interpréter le portrait de phase comme une spirale convergente : c'est une ellipse fermée (conservatif), pas un attracteur.",
+        ],
         context,
     )
 

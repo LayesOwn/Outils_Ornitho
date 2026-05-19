@@ -8,7 +8,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import erf, erfinv
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def _effective_strip_width(sigma: float, strip_width: float) -> float:
@@ -144,9 +144,36 @@ def render(context: dict) -> None:
             f"Densité estimée = {estimated_density:.2f} ind/ha sur {float(transect_length)*int(n_transects)/1000:.1f} km de transects."
         )
     teacher_note(
-        f"ESW = sigma * sqrt(pi/2) * erf(W / (sigma*sqrt(2))). "
-        f"D = n / (2 * ESW * L * K) avec L et K en mètres et transects. "
-        "En pratique, l'intervalle de confiance sur D est estimé par bootstrap ou delta-méthode.",
+        "Principe clé : g(0) = 1 (détection parfaite à distance 0 de la ligne). "
+        "L'ESW (effective strip width) convertit la zone de détection hétérogène en bande uniforme équivalente : "
+        "un transect de demi-largeur ESW sans chute de détection détecterait autant d'individus que le transect réel. "
+        "Pour les points fixes, l'analogue est l'EDR (effective detection radius). "
+        "La densité D̂ = n / (2·L·K·ESW) avec n = détections, L = longueur d'un transect (m), K = nombre de transects. "
+        "L'ajustement de la fonction de détection se fait par maximum de vraisemblance. "
+        "La demi-normale est la plus simple mais le modèle hazard-rate s'ajuste mieux aux distributions "
+        "avec un épaulement (forte détection jusqu'à une distance puis chute abrupte). "
+        "L'IC sur D est calculé par bootstrap ou delta-méthode (CV(D̂) ≈ √(CV²(n) + CV²(ESW))).",
+        context,
+    )
+    teacher_formula(
+        "Estimateur de densité — transect linéaire (Chap. 6, ORNI 422)",
+        r"\hat{D} = \frac{n}{2 \cdot L \cdot K \cdot \widehat{\mathrm{ESW}}}"
+        r"\qquad \widehat{\mathrm{ESW}} = \hat{\sigma}\sqrt{\frac{\pi}{2}}\;\mathrm{erf}\!\left(\frac{W}{\hat{\sigma}\sqrt{2}}\right)",
+        context,
+    )
+    teacher_formula(
+        "Fonction de détection demi-normale",
+        r"g(y) = \exp\!\left(-\frac{y^2}{2\sigma^2}\right) \qquad g(0) = 1 \quad (\text{hypothèse fondamentale})",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Violer g(0) = 1 : si les oiseaux chantent moins, fuient ou s'approchent avant détection, l'ESW est biaisée et N surestimé ou sous-estimé.",
+            "Choisir W trop large : les rares détections lointaines diluent la queue de distribution et biaisent σ̂ vers le haut.",
+            "Comparer des densités estimées avec des W ou des fonctions de détection différentes : les ESW ne sont pas comparables entre études.",
+            "Confondre EDR (points fixes, rayon) et ESW (transects linéaires, demi-largeur) : les formules d'estimation de densité diffèrent.",
+            "Négliger le regroupement d'observations (clustering) : si les oiseaux sont détectés en groupes, il faut estimer la taille moyenne des groupes séparément.",
+        ],
         context,
     )
     learning_notes(
