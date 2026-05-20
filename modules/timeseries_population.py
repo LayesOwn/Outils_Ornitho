@@ -83,6 +83,9 @@ def render(context: dict) -> None:
             window = st.slider("Fenêtre de lissage (années)", 2, 7, 3)
             seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=44)
         data = simulate_population_series(n_years, n0, trend_r, sd_noise, int(seed))
+    if data["Annee"].nunique() < 2:
+        st.error("Les données doivent couvrir au moins 2 années distinctes pour calculer une tendance.")
+        return
     trend_lin = stats.linregress(data["Annee"], data["Effectif"])
     mk = mann_kendall_test(data["Effectif"].values)
     smoothed = moving_average(data["Effectif"].values, window)

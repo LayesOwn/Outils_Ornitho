@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from app.auth import is_teacher, get_role
 
 
 PLOTLY_COLORS = ["#39d98a", "#4dabf7", "#ff6b6b", "#ffd166", "#b197fc", "#20c997"]
@@ -466,22 +467,34 @@ def render_sidebar() -> dict:
     """, unsafe_allow_html=True)
     st.sidebar.divider()
 
-    # Mode
-    _raw = st.sidebar.radio(
-        "Mode d'affichage",
-        ["👨‍🎓  Étudiant", "🎓  Enseignant"],
-        index=0, horizontal=True,
-        help="Mode Enseignant : formules LaTeX, notes pédagogiques et erreurs fréquentes.",
-    )
-    mode = "Enseignant" if "Enseignant" in _raw else "Étudiant"
-    if mode == "Enseignant":
+    # Mode — verrouillé en Étudiant si rôle = student
+    role = get_role()
+    if role == "student":
+        mode = "Étudiant"
         st.sidebar.markdown(
-            '<div style="background:rgba(255,209,102,0.14);border:1px solid rgba(255,209,102,0.40);'
-            'border-radius:7px;padding:0.3rem 0.7rem;font-size:0.79rem;color:#ffd166;'
+            '<div style="background:rgba(77,171,247,0.12);border:1px solid rgba(77,171,247,0.35);'
+            'border-radius:7px;padding:0.3rem 0.7rem;font-size:0.79rem;color:#4dabf7;'
             'text-align:center;margin:0.3rem 0 0.1rem 0;font-weight:700;letter-spacing:0.04em">'
-            '🎓 MODE ENSEIGNANT ACTIF</div>',
+            '👨‍🎓 MODE ÉTUDIANT</div>',
             unsafe_allow_html=True,
         )
+    else:
+        _raw = st.sidebar.radio(
+            "Mode d'affichage",
+            ["👨‍🎓  Étudiant", "🎓  Enseignant"],
+            index=1 if role == "teacher" else 0,
+            horizontal=True,
+            help="Mode Enseignant : formules LaTeX, notes pédagogiques et erreurs fréquentes.",
+        )
+        mode = "Enseignant" if "Enseignant" in _raw else "Étudiant"
+        if mode == "Enseignant":
+            st.sidebar.markdown(
+                '<div style="background:rgba(255,209,102,0.14);border:1px solid rgba(255,209,102,0.40);'
+                'border-radius:7px;padding:0.3rem 0.7rem;font-size:0.79rem;color:#ffd166;'
+                'text-align:center;margin:0.3rem 0 0.1rem 0;font-weight:700;letter-spacing:0.04em">'
+                '🎓 MODE ENSEIGNANT ACTIF</div>',
+                unsafe_allow_html=True,
+            )
     st.sidebar.divider()
 
     # Chargement CSV

@@ -7,9 +7,11 @@ import streamlit as st
 try:
     from simulations.pva_engine import simulate_pva, summarize_pva
 except ImportError as _pva_err:
-    import streamlit as st
-    st.error(f"Module PVA non disponible : {_pva_err}")
-    st.stop()
+    simulate_pva = None  # type: ignore[assignment]
+    summarize_pva = None  # type: ignore[assignment]
+    _PVA_IMPORT_ERROR = str(_pva_err)
+else:
+    _PVA_IMPORT_ERROR = ""
 from utils.ui import explain, learning_notes, module_intro, section, style_figure
 
 
@@ -30,6 +32,9 @@ def run_scenario_table(n0: int, years: int, seed: int) -> pd.DataFrame:
 
 
 def render(context: dict) -> None:
+    if _PVA_IMPORT_ERROR:
+        st.error(f"Module Scénarios non disponible : {_PVA_IMPORT_ERROR}")
+        return
     section("Scénarios de gestion", "Comparer plusieurs actions de conservation sur une même population.")
     module_intro(
         "Un scénario de gestion est une hypothèse d'action : restaurer l'habitat, réduire la mortalité ou combiner plusieurs mesures.",

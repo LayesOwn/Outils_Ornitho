@@ -98,7 +98,8 @@ def render(context: dict) -> None:
             seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=55)
         history = simulate_detection_history(n_sites, n_visits, psi_true, p_true, int(seed))
 
-    estimates = fit_occupancy(history)
+    with st.spinner("Ajustement du modèle d'occupation…"):
+        estimates = fit_occupancy(history)
     if estimates.get("converged_extreme"):
         st.warning(
             "⚠ Le modèle a convergé vers des valeurs extrêmes (ψ ou p proche de 0 ou 1). "

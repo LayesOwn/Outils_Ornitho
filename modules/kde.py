@@ -48,8 +48,9 @@ def compute_kde_homerange(
     yi = np.linspace(ymin, ymax, grid_n)
     xx, yy = np.meshgrid(xi, yi)
 
-    kde = gaussian_kde(np.vstack([x, y]), bw_method=bw_factor)
-    zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(grid_n, grid_n)
+    with st.spinner("Calcul de la densité KDE…"):
+        kde = gaussian_kde(np.vstack([x, y]), bw_method=bw_factor)
+        zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(grid_n, grid_n)
 
     dx = (xmax - xmin) / grid_n
     dy = (ymax - ymin) / grid_n

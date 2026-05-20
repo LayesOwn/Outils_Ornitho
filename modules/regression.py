@@ -176,7 +176,7 @@ def render(context: dict) -> None:
             f"n = {len(data)}, X = {x_col}, Y = {y_col}.",
             f"Pente = {slope:.3f}, intercept = {intercept:.3f}.",
             f"r = {r_value:.3f}, R2 = {r_value**2:.3f}, p = {p_value:.3g}.",
-            f"Interpretation : relation {strength} ({direction}).",
+            f"Interpretation : relation {strength_label} ({direction}).",
         ],
     )
     if pdf:

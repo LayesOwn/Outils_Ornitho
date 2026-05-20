@@ -10,6 +10,7 @@ if str(_root) not in sys.path:
 
 import streamlit as st
 
+from app.auth import check_access
 from app.config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
 from utils.ui import apply_global_style, render_header, render_home_page, render_sidebar, render_teacher_banner
 
@@ -22,6 +23,10 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
     apply_global_style()
+
+    if not check_access():
+        st.stop()
+
     render_header(APP_TITLE, APP_SUBTITLE)
 
     # Initialize navigation state
@@ -64,8 +69,12 @@ def main() -> None:
             except Exception as exc:
                 st.error(f"Erreur dans le module **{module_name}** : {exc}")
                 with st.expander("Détail de l'erreur"):
-                    import traceback
-                    st.code(traceback.format_exc(), language="python")
+                    from app.auth import is_teacher
+                    if is_teacher():
+                        import traceback
+                        st.code(traceback.format_exc(), language="python")
+                    else:
+                        st.caption("Contactez votre enseignant en lui indiquant le message ci-dessus.")
 
 
 if __name__ == "__main__":

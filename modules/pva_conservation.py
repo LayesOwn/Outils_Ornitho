@@ -7,9 +7,11 @@ from core.export import build_pdf_report
 try:
     from simulations.pva_engine import simulate_pva, summarize_pva
 except ImportError as _pva_err:
-    import streamlit as st
-    st.error(f"Module PVA non disponible : {_pva_err}")
-    st.stop()
+    simulate_pva = None  # type: ignore[assignment]
+    summarize_pva = None  # type: ignore[assignment]
+    _PVA_IMPORT_ERROR = str(_pva_err)
+else:
+    _PVA_IMPORT_ERROR = ""
 from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
@@ -19,6 +21,9 @@ def _run_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, seed):
 
 
 def render(context: dict) -> None:
+    if _PVA_IMPORT_ERROR:
+        st.error(f"Module PVA non disponible : {_PVA_IMPORT_ERROR}")
+        return
     section("PVA et conservation", "Analyse de viabilité de population avec incertitude environnementale.")
     module_intro(
         "Une PVA simule de nombreuses trajectoires possibles d'une population afin d'estimer son risque de quasi-extinction.",
