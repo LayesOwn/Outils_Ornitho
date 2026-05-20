@@ -10,18 +10,24 @@ echo  ║         Développé par Abdoulaye Diop — 2026         ║
 echo  ╚══════════════════════════════════════════════════════╝
 echo.
 
-:: Vérifier Python
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo  [ERREUR] Python introuvable. Installez Python 3.10+ et réessayez.
+:: Chercher Python 3.14 en priorité, puis fallback sur python du PATH
+set "PYTHON_EXE="
+if exist "%LOCALAPPDATA%\Python\bin\python.exe" (
+    set "PYTHON_EXE=%LOCALAPPDATA%\Python\bin\python.exe"
+) else (
+    python --version >nul 2>&1
+    if not errorlevel 1 set "PYTHON_EXE=python"
+)
+if "%PYTHON_EXE%"=="" (
+    echo  [ERREUR] Python introuvable. Installez Python 3.10+ et reessayez.
     pause
     exit /b 1
 )
 
 :: Vérifier Streamlit
-python -c "import streamlit" >nul 2>&1
+"%PYTHON_EXE%" -c "import streamlit" >nul 2>&1
 if errorlevel 1 (
-    echo  [ERREUR] Streamlit non installé. Exécutez : pip install streamlit
+    echo  [ERREUR] Streamlit non installe. Executez : pip install streamlit
     pause
     exit /b 1
 )
@@ -35,8 +41,8 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8501 "') do (
 echo  Démarrage de l'application...
 echo.
 
-:: Lancer Streamlit en arrière-plan
-start /B "" python -m streamlit run app\main.py ^
+:: Lancer Streamlit dans un processus détaché (survit à la fermeture de cette fenêtre)
+start "" /MIN "%PYTHON_EXE%" -m streamlit run app\main.py ^
     --server.port 8501 ^
     --server.headless true ^
     --browser.gatherUsageStats false ^
