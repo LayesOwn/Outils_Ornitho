@@ -46,7 +46,6 @@ def check_access() -> bool:
 
     if not student_code and not teacher_code:
         # Aucun code configuré → accès libre uniquement en développement local
-        import os
         on_pythonanywhere = bool(os.environ.get("PYTHONANYWHERE_SITE") or os.environ.get("PYTHONANYWHERE_DOMAIN"))
         if on_pythonanywhere:
             # Sur PythonAnywhere sans codes configurés : bloquer avec message explicite
