@@ -323,6 +323,14 @@ def render(context: dict) -> None:  # noqa: C901
             st.error(f"Erreur de nettoyage : {e}")
             return
 
+        # Partager avec tous les modules via session_state
+        st.session_state["_orni_shared_df"]   = df
+        st.session_state["_orni_shared_fname"] = source_name
+        st.success(
+            f"✅ **{source_name}** chargé et partagé avec tous les modules. "
+            "Rechargez la page ou naviguez vers un autre module pour l'utiliser."
+        )
+
     num_cols, cat_cols, dt_cols = split_columns(df)
     n_dup = int(df.duplicated().sum())
 

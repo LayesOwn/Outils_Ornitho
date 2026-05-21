@@ -517,9 +517,26 @@ def render_sidebar() -> dict:
             data = _clean_data(raw)
             numeric_columns, categorical_columns = _split_columns(data)
             data_filename = uploaded.name
+            # Effacer un éventuel partage depuis Analyse CSV
+            st.session_state.pop("_orni_shared_df",    None)
+            st.session_state.pop("_orni_shared_fname", None)
             st.sidebar.success(f"✅ {len(data):,} lignes · {len(data.columns)} colonnes")
         except Exception as exc:
             st.sidebar.error(f"Erreur : {exc}")
+
+    elif st.session_state.get("_orni_shared_df") is not None:
+        # Fallback : fichier partagé par le module Analyse CSV
+        data          = st.session_state["_orni_shared_df"]
+        data_filename = st.session_state.get("_orni_shared_fname", "Analyse CSV")
+        numeric_columns, categorical_columns = _split_columns(data)
+        st.sidebar.info(
+            f"📂 **{data_filename}** ({len(data):,} lignes)\n\n"
+            "_Partagé depuis Analyse CSV_"
+        )
+        if st.sidebar.button("✕ Effacer ces données", use_container_width=True):
+            st.session_state.pop("_orni_shared_df",    None)
+            st.session_state.pop("_orni_shared_fname", None)
+            st.rerun()
 
     st.sidebar.divider()
     st.sidebar.caption(
