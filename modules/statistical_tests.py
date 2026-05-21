@@ -129,13 +129,16 @@ def render(context: dict) -> None:
         selected_groups = all_groups
         if len(all_groups) > 6:
             with left:
-                st.caption(f"⚠ {len(all_groups)} modalités — sélectionnez 2 à 6 groupes :")
+                st.caption(
+                    f"ℹ {len(all_groups)} modalités détectées dans **{group_col}**. "
+                    "Choisissez les groupes à comparer (2 minimum) :"
+                )
                 selected_groups = st.multiselect(
                     "Groupes à comparer",
                     options=all_groups,
-                    default=all_groups[:4],
-                    max_selections=6,
+                    default=all_groups[:min(4, len(all_groups))],
                     key="test_grp_select",
+                    help="Sélectionnez 2 groupes minimum. Avec > 8 groupes, le graphique peut être chargé.",
                 )
             if len(selected_groups) < 2:
                 data_incompatible(
@@ -188,7 +191,7 @@ def render(context: dict) -> None:
             mean_a = st.slider("Moyenne restaurée",  0.0, 6.0, 3.2, step=0.1)
             mean_b = st.slider("Moyenne dégradée",   0.0, 6.0, 2.4, step=0.1)
             sd     = st.slider("Variabilité entre nids", 0.2, 3.0, 1.1, step=0.1)
-            seed   = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33)
+            seed   = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33) or 33)
         data      = generate_two_groups(int(seed), n_a, n_b, mean_a, mean_b, sd)
         hab_label = "Habitat"
         val_label = "Succès reproducteur"

@@ -66,7 +66,7 @@ def render(context: dict) -> None:
             sites = st.slider("Nombre de sites", 10, 120, 48)
             mean_count = st.slider("Abondance moyenne attendue", 1, 80, 18)
             dispersion = st.slider("Agrégation spatiale", 1.0, 30.0, 8.0, step=1.0)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=21)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=21) or 21)
         data = generate_counts(int(seed), sites, mean_count, dispersion)
         x_title = "Nombre d'individus observés"
 

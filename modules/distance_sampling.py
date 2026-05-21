@@ -84,9 +84,9 @@ def render(context: dict) -> None:
                 "template_distance_sampling.csv",
             )
             dist_col = st.selectbox("Colonne distances (m)", numeric_cols)
-            strip_width = st.number_input("Demi-largeur W (m)", min_value=1.0, value=200.0, step=10.0)
-            transect_length = st.number_input("Longueur totale des transects (m)", min_value=100.0, value=3000.0, step=100.0)
-            n_transects = st.number_input("Nombre de transects", min_value=1, value=6)
+            strip_width = float(st.number_input("Demi-largeur W (m)", min_value=1.0, value=200.0, step=10.0) or 200.0)
+            transect_length = float(st.number_input("Longueur totale des transects (m)", min_value=100.0, value=3000.0, step=100.0) or 3000.0)
+            n_transects = int(st.number_input("Nombre de transects", min_value=1, value=6) or 6)
         raw_distances = data_src[dist_col].dropna().values.astype(float)
         distances = raw_distances[(raw_distances >= 0) & (raw_distances <= strip_width)]
         n_filtered = len(raw_distances) - len(distances)
@@ -103,7 +103,7 @@ def render(context: dict) -> None:
             strip_width = st.slider("Demi-largeur du transect W (m)", 50, 500, 200)
             transect_length = st.slider("Longueur d'un transect (m)", 200, 2000, 500, step=100)
             n_transects = st.slider("Nombre de transects", 1, 20, 6)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=33) or 33)
         distances = simulate_distances(true_density, sigma_true, float(strip_width), float(transect_length), n_transects, int(seed))
     fit = fit_half_normal(distances, float(strip_width))
 

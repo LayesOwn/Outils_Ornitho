@@ -27,7 +27,7 @@ def _clean_data(frame: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def _split_columns(frame: pd.DataFrame) -> tuple[list[str], list[str]]:
+def split_columns(frame: pd.DataFrame) -> tuple[list[str], list[str]]:
     numeric = frame.select_dtypes(include="number").columns.tolist()
     categorical = [c for c in frame.columns if c not in numeric
                    and frame[c].nunique(dropna=True) <= 30]
@@ -540,48 +540,11 @@ def render_sidebar() -> dict:
                 '🎓 MODE ENSEIGNANT ACTIF</div>',
                 unsafe_allow_html=True,
             )
-    st.sidebar.divider()
-
-    # Chargement CSV
-    st.sidebar.markdown("**🗂️ Données de terrain**")
-    uploaded = st.sidebar.file_uploader(
-        "Charger un CSV (optionnel)", type=["csv"], label_visibility="collapsed"
-    )
+    # Data is managed per section via "Analyse Fichier" — no global uploader
     data: pd.DataFrame | None = None
     numeric_columns: list[str] = []
     categorical_columns: list[str] = []
     data_filename: str = ""
-
-    if uploaded is not None:
-        sep_labels = {",": "Virgule", ";": "Point-virgule", "\t": "Tabulation"}
-        sep_choice = st.sidebar.selectbox("Séparateur", list(sep_labels.values()), index=1)
-        sep = {v: k for k, v in sep_labels.items()}[sep_choice]
-        try:
-            uploaded.seek(0)
-            raw = pd.read_csv(uploaded, sep=sep)
-            data = _clean_data(raw)
-            numeric_columns, categorical_columns = _split_columns(data)
-            data_filename = uploaded.name
-            # Effacer un éventuel partage depuis Analyse CSV
-            st.session_state.pop("_orni_shared_df",    None)
-            st.session_state.pop("_orni_shared_fname", None)
-            st.sidebar.success(f"✅ {len(data):,} lignes · {len(data.columns)} colonnes")
-        except Exception as exc:
-            st.sidebar.error(f"Erreur : {exc}")
-
-    elif st.session_state.get("_orni_shared_df") is not None:
-        # Fallback : fichier partagé par le module Analyse CSV
-        data          = st.session_state["_orni_shared_df"]
-        data_filename = st.session_state.get("_orni_shared_fname", "Analyse CSV")
-        numeric_columns, categorical_columns = _split_columns(data)
-        st.sidebar.info(
-            f"📂 **{data_filename}** ({len(data):,} lignes)\n\n"
-            "_Partagé depuis Analyse CSV_"
-        )
-        if st.sidebar.button("✕ Effacer ces données", use_container_width=True):
-            st.session_state.pop("_orni_shared_df",    None)
-            st.session_state.pop("_orni_shared_fname", None)
-            st.rerun()
 
     st.sidebar.divider()
     st.sidebar.caption(
@@ -597,9 +560,9 @@ def render_sidebar() -> dict:
         st.markdown("""
 **ORNI-LAB** est un laboratoire interactif de modélisation ornithologique conçu pour l'enseignement universitaire en écologie et biologie des populations.
 
-Il propose **18 modules** répartis en deux sections :
-- 📊 **Biostatistique** (8 modules)
-- 🦅 **Dynamique des populations** (10 modules)
+Il propose **20 modules** répartis en deux sections :
+- 📊 **Biostatistique** (9 modules)
+- 🦅 **Dynamique des populations** (11 modules)
 
 Utilisable avec des **données simulées** ou des **fichiers CSV terrain** — du L3 au doctorat.
         """)
@@ -607,17 +570,17 @@ Utilisable avec des **données simulées** ou des **fichiers CSV terrain** — d
     with st.sidebar.expander("📋 Comment utiliser"):
         st.markdown("""
 **1.** Choisir un mode : 👨‍🎓 Étudiant ou 🎓 Enseignant
-**2.** Charger un CSV terrain (optionnel)
-**3.** Naviguer depuis la page d'accueil vers une section
+**2.** Naviguer depuis la page d'accueil vers une section
+**3.** Ouvrir **Analyse Fichier** pour charger vos données CSV
 **4.** Ajuster les paramètres — résultats en temps réel
 **5.** Exporter PDF ou CSV depuis chaque module
         """)
 
-    with st.sidebar.expander("📊 Biostatistique — 8 modules"):
+    with st.sidebar.expander("📊 Biostatistique — 9 modules"):
         st.markdown("""
 | Module | Utilité |
 |:---|:---|
-| Analyse CSV | Exploration guidée d'un fichier |
+| Analyse Fichier | Charger et explorer un CSV |
 | Stats descriptives | Résumer et visualiser |
 | Corrélation & régression | Relation entre 2 variables |
 | Tests statistiques | t-test, ANOVA, Mann-Whitney |
@@ -627,10 +590,11 @@ Utilisable avec des **données simulées** ou des **fichiers CSV terrain** — d
 | Domaine vital — KDE | Estimation à noyau |
         """)
 
-    with st.sidebar.expander("🦅 Dynamique — 10 modules"):
+    with st.sidebar.expander("🦅 Dynamique — 11 modules"):
         st.markdown("""
 | Module | Utilité |
 |:---|:---|
+| Analyse Fichier | Charger et explorer un CSV |
 | Richesse & diversité | Shannon, Simpson |
 | Croissance | Exponentielle / logistique |
 | Matrices de Leslie | Projection structurée |

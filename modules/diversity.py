@@ -7,7 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def compute_diversity_indices(counts: np.ndarray) -> dict[str, float]:
@@ -111,7 +111,7 @@ def render(context: dict) -> None:
             n_sites = st.slider("Nombre de sites", 20, 150, 60)
             n_species = st.slider("Richesse régionale (pool d'espèces)", 10, 60, 24)
             mean_abundance = st.slider("Abondance moyenne par espèce", 0.5, 10.0, 2.5, step=0.5)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=17)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=17) or 17)
         data = simulate_community(n_sites, n_species, mean_abundance, int(seed))
         species_cols = [c for c in data.columns if c.startswith("Esp")]
         species_matrix = data[species_cols].values
@@ -197,6 +197,41 @@ def render(context: dict) -> None:
         if pdf:
             st.download_button("Exporter le résumé PDF", pdf, "orni_lab_diversite.pdf", "application/pdf")
 
+    teacher_note(
+        "Shannon H' = −Σ pᵢ ln(pᵢ) mesure l'incertitude sur l'identité d'un individu tiré au hasard. "
+        "H' = 0 si une seule espèce domine totalement ; H'_max = ln(S) si toutes les espèces sont équi-abondantes. "
+        "Simpson 1−D = 1 − Σ pᵢ² = probabilité que deux individus tirés au hasard appartiennent à des espèces différentes — "
+        "plus robuste aux espèces rares que Shannon. "
+        "L'équitabilité de Pielou J' = H'/ln(S) varie de 0 (une espèce domine) à 1 (richesse équi-répartie). "
+        "Attention : ces indices sont calculés sur les abondances agrégées par habitat, pas site par site — "
+        "ce sont des mesures de diversité gamma (diversité régionale), pas alpha (diversité locale). "
+        "Indices de Chao1 et ACE (non implémentés ici) estiment la richesse vraie en tenant compte des espèces non observées. "
+        "La partition de diversité β (Whittaker) quantifie la différenciation entre habitats : β = γ/ᾱ.",
+        context,
+    )
+    teacher_formula(
+        "Indices de diversité — Shannon, Simpson, Équitabilité",
+        r"H' = -\sum_{i=1}^{S} p_i \ln p_i"
+        r"\qquad 1-D = 1 - \sum_{i=1}^{S} p_i^2"
+        r"\qquad J' = \frac{H'}{\ln S}",
+        context,
+    )
+    teacher_formula(
+        "Partition additive de la diversité (Whittaker)",
+        r"\gamma = \bar{\alpha} + \beta"
+        r"\qquad \beta = \gamma - \bar{\alpha} \quad \text{(diversité entre sites)}",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Comparer des indices entre sites avec des efforts d'échantillonnage très différents : un site très prospecté paraîtra plus riche artificiellement.",
+            "Interpréter J' ≈ 1 comme une 'bonne' communauté sans connaître S : une communauté à 2 espèces équiabondantes a aussi J' = 1.",
+            "Utiliser H' pour comparer des communautés avec des pools régionaux différents : un milieu géographiquement isolé aura naturellement moins d'espèces.",
+            "Confondre diversité alpha (locale, par site) et gamma (régionale, totale) : ce module calcule les indices sur les données agrégées par habitat.",
+            "Oublier que la courbe d'accumulation dépend de l'ordre des sites : la bande d'incertitude reflète cette variabilité, pas l'erreur de mesure.",
+        ],
+        context,
+    )
     learning_notes(
         "Shannon H' combine richesse et équitabilité ; une communauté dominée par une seule espèce a un H' bas.",
         "Les indices dépendent de l'effort d'échantillonnage ; comparer uniquement des communautés collectées avec le même protocole.",

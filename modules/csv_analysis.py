@@ -270,33 +270,37 @@ def _outlier_flag(series: pd.Series) -> pd.Series:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def render(context: dict) -> None:  # noqa: C901
-    section("Analyse CSV", "Exploration et analyse professionnelle d'un jeu de données terrain.")
+    section("Analyse Fichier", "Charger un fichier CSV et explorer vos données de terrain.")
     module_intro(
         "Ce module charge n'importe quel fichier CSV (auto-détection encodage/séparateur), "
         "nettoie les données en profondeur et produit une analyse exploratoire complète.",
         "Il couvre : profil de chaque variable, détection d'outliers, tests de normalité, "
         "corrélations (Pearson/Spearman), comparaisons de groupes et tableau de contingence.",
-        "Idéal pour des données de terrain : comptages STOC, mesures morphologiques, "
-        "données de baguage, suivis GPS, relevés d'habitat ou résultats de protocoles LPO.",
+        "Une fois chargé, le fichier est disponible dans tous les modules de cette section.",
     )
 
-    # ── Chargement ────────────────────────────────────────────────────────────
-    enc_used = sep_used = source_name = None
+    sk = context.get("section_data_key", "_orni_data_default")
+
+    # ── Données déjà chargées pour cette section ──────────────────────────────
     if context.get("data") is not None:
-        raw_df   = context["data"]
-        source_name = context.get("data_filename", "fichier sidebar")
-        df = deep_clean(raw_df)
-        st.info(f"Données chargées depuis la sidebar : **{source_name}** — {len(df):,} lignes, {len(df.columns)} colonnes.")
+        source_name = context.get("data_filename", "fichier.csv")
+        df = deep_clean(context["data"])
+        col_info, col_btn = st.columns([3, 1])
+        col_info.success(f"📂 **{source_name}** — {len(df):,} lignes · {len(df.columns)} colonnes")
+        if col_btn.button("Changer de fichier", use_container_width=True):
+            st.session_state.pop(sk, None)
+            st.session_state.pop(f"{sk}_fname", None)
+            st.rerun()
     else:
+        # ── Chargement ────────────────────────────────────────────────────────
         uploaded = st.file_uploader("Charger un fichier CSV", type=["csv", "txt", "tsv"])
         if uploaded is None:
-            st.info("Déposez un fichier CSV pour commencer l'analyse.")
+            st.info("Déposez un fichier CSV pour commencer l'analyse. Une fois chargé, toutes les données seront disponibles dans chaque module de cette section.")
             return
 
         raw_bytes = uploaded.read()
         source_name = uploaded.name
 
-        # Mode auto vs manuel
         load_mode = st.radio("Détection du format", ["Automatique", "Manuel"], horizontal=True)
         if load_mode == "Automatique":
             try:
@@ -323,13 +327,9 @@ def render(context: dict) -> None:  # noqa: C901
             st.error(f"Erreur de nettoyage : {e}")
             return
 
-        # Partager avec tous les modules via session_state
-        st.session_state["_orni_shared_df"]   = df
-        st.session_state["_orni_shared_fname"] = source_name
-        st.success(
-            f"✅ **{source_name}** chargé et partagé avec tous les modules. "
-            "Rechargez la page ou naviguez vers un autre module pour l'utiliser."
-        )
+        st.session_state[sk] = df
+        st.session_state[f"{sk}_fname"] = source_name
+        st.rerun()
 
     num_cols, cat_cols, dt_cols = split_columns(df)
     n_dup = int(df.duplicated().sum())

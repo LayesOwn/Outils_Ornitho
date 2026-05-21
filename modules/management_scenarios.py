@@ -12,7 +12,7 @@ except ImportError as _pva_err:
     _PVA_IMPORT_ERROR = str(_pva_err)
 else:
     _PVA_IMPORT_ERROR = ""
-from utils.ui import explain, learning_notes, module_intro, section, style_figure
+from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 @st.cache_data
@@ -46,7 +46,7 @@ def render(context: dict) -> None:
     with left:
         n0 = st.slider("Effectif initial commun", 20, 1500, 160)
         years = st.slider("Horizon de comparaison", 10, 80, 40)
-        seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=91)
+        seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=91) or 91)
 
     results = run_scenario_table(n0, years, int(seed))
     with right:
@@ -63,6 +63,40 @@ def render(context: dict) -> None:
 
     best = results.sort_values("Risque quasi-extinction").iloc[0]
     explain(f"Le scénario le plus favorable est « {best['Scénario']} », avec un risque estimé de {100 * best['Risque quasi-extinction']:.1f} %.")
+    teacher_note(
+        "Un scénario de gestion est une simulation PVA sous un jeu d'hypothèses explicites : taux de croissance moyen r̄, "
+        "variabilité environnementale σ_e, capacité de charge K et pertes annuelles fixes (prélèvement, mortalité additionnelle). "
+        "La comparaison entre scénarios repose sur deux métriques : (1) le risque de quasi-extinction (fraction de trajectoires "
+        "passant sous le seuil quasi-extinction avant l'horizon) et (2) la médiane finale de l'effectif. "
+        "Un scénario peut réduire le risque sans augmenter la médiane (si l'action élimine les mauvaises trajectoires) "
+        "ou augmenter la médiane sans réduire le risque (si quelques trajectoires explosent mais les pires persistent). "
+        "La décision de gestion doit tenir compte des deux. "
+        "Principe d'optimalité : l'action optimale maximise une fonction d'utilité (ex. : risque minimal sous contrainte budgétaire) "
+        "— la comparaison graphique est utile mais ne remplace pas une analyse décisionnelle formelle.",
+        context,
+    )
+    teacher_formula(
+        "Risque de quasi-extinction — estimateur Monte-Carlo",
+        r"P(\text{QE}) = \frac{1}{B}\sum_{b=1}^{B} \mathbf{1}\!\left[\min_{t \le T} N_b(t) \le N_{\min}\right]"
+        r"\qquad N_b(t+1) = \max\!\bigl(0,\,\min(K,\,N_b(t)\,e^{\bar{r}+\varepsilon_t} - \text{pertes})\bigr)",
+        context,
+    )
+    teacher_formula(
+        "Impact d'une réduction de mortalité sur λ — perturbation de premier ordre",
+        r"\Delta\lambda \approx \frac{\partial\lambda}{\partial s}\,\Delta s"
+        r"\qquad \text{(sensibilité de Leslie, Caswell 2001)}",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Comparer des scénarios avec des paramètres par défaut non justifiés : les résultats sont sensibles à r̄ et σ_e — une analyse de sensibilité paramétrique est indispensable.",
+            "Interpréter un risque = 0 % comme 'population sûre' sur un court horizon : les événements rares n'ont pas encore eu le temps de se produire.",
+            "Choisir le scénario qui maximise uniquement la médiane finale : une médiane haute peut masquer un risque élevé si la variance est grande.",
+            "Supposer que les effets des actions sont additifs : restauration habitat + réduction mortalité peut interagir de façon non linéaire avec la densité-dépendance.",
+            "Omettre le coût opérationnel et la faisabilité : l'action combinée est souvent la 'meilleure' en simulation mais la plus difficile à mettre en œuvre.",
+        ],
+        context,
+    )
     learning_notes(
         "Comparer plusieurs actions évite de raisonner sur un seul futur possible.",
         "Le résultat dépend des hypothèses ; il faut les justifier avec des données de terrain.",

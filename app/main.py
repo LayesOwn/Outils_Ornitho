@@ -12,7 +12,13 @@ import streamlit as st
 
 from app.auth import check_access
 from app.config import APP_SUBTITLE, APP_TITLE, SECTION_META, SECTIONS
-from utils.ui import apply_global_style, render_header, render_home_page, render_sidebar, render_teacher_banner
+from utils.ui import apply_global_style, render_header, render_home_page, render_sidebar, render_teacher_banner, split_columns
+
+# Session-state keys for section-specific data
+_SECTION_DATA_KEYS: dict[str, str] = {
+    "Biostatistique": "_orni_data_biostat",
+    "Dynamique des populations": "_orni_data_dynpop",
+}
 
 
 def main() -> None:
@@ -40,6 +46,17 @@ def main() -> None:
 
     section_name: str | None = st.session_state["section"]
 
+    # Inject section-specific data into context
+    sk = _SECTION_DATA_KEYS.get(section_name, "") if section_name else ""
+    context["section_data_key"] = sk
+    if sk and st.session_state.get(sk) is not None:
+        section_df = st.session_state[sk]
+        num_cols, cat_cols = split_columns(section_df)
+        context["data"] = section_df
+        context["numeric_columns"] = num_cols
+        context["categorical_columns"] = cat_cols
+        context["data_filename"] = st.session_state.get(f"{sk}_fname", "")
+
     if section_name is None:
         render_home_page(SECTIONS, SECTION_META)
     else:
@@ -49,6 +66,16 @@ def main() -> None:
 
         st.sidebar.divider()
         st.sidebar.markdown(f"**{meta['emoji']} {section_name}**")
+
+        # Data status indicator for this section
+        if context.get("data") is not None:
+            fname = context.get("data_filename", "fichier.csv")
+            n_rows = len(context["data"])
+            st.sidebar.info(f"📂 **{fname}**\n{n_rows:,} lignes chargées")
+            if st.sidebar.button("✕ Effacer les données", use_container_width=True, key="clear_section_data"):
+                st.session_state.pop(sk, None)
+                st.session_state.pop(f"{sk}_fname", None)
+                st.rerun()
 
         if st.sidebar.button("← Accueil", use_container_width=True):
             st.session_state["section"] = None

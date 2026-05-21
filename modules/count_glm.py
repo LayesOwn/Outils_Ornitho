@@ -126,7 +126,7 @@ def render(context: dict) -> None:
             mean_count = st.slider("Abondance moyenne de base", 1.0, 20.0, 5.0, step=0.5)
             year_trend = st.slider("Tendance annuelle (log-échelle)", -0.15, 0.15, -0.04, step=0.01, format="%.2f")
             overdispersion = st.slider("Surdispersion simulée (1 = Poisson pur)", 1.0, 5.0, 2.0, step=0.1)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=66)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=66) or 66)
         data = simulate_count_data(n_sites, n_years, mean_count, year_trend, overdispersion, int(seed))
 
     with right:

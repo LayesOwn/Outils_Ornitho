@@ -100,7 +100,7 @@ def render(context: dict) -> None:
             n_visits = st.slider("Visites répétées par site", 2, 8, 3)
             psi_true = st.slider("Occupation vraie ψ", 0.05, 0.99, 0.60, step=0.01)
             p_true = st.slider("Détection vraie p", 0.05, 0.99, 0.35, step=0.01)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=55)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=55) or 55)
         history = simulate_detection_history(n_sites, n_visits, psi_true, p_true, int(seed))
 
     with st.spinner("Ajustement du modèle d'occupation…"):

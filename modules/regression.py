@@ -50,7 +50,7 @@ def render(context: dict) -> None:
         with left:
             n = st.slider("Nombre d'oiseaux mesurés", 12, 120, 42)
             noise = st.slider("Variabilité individuelle", 0.5, 8.0, 2.4, step=0.1)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=7)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=7) or 7)
         data = wing_mass_dataset(seed=int(seed), n=n, noise=noise)
         x_col, y_col = "Longueur de l'aile (mm)", "Masse corporelle (g)"
 

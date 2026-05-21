@@ -127,7 +127,7 @@ def render(context: dict) -> None:
             spread = st.slider("Dispersion spatiale (unités)", 1.0, 20.0, 6.0, step=0.5)
             bw = st.slider("Facteur de lissage (bandwidth)", 0.1, 2.0, 0.5, step=0.05)
             levels = st.multiselect("Isopleths (%)", [50, 75, 90, 95, 99], default=[50, 95])
-            seed = st.number_input("Graine", 1, 9999, 12)
+            seed = int(st.number_input("Graine", 1, 9999, 12) or 12)
         data = simulate_gps_data(n_ind, n_locs, spread, int(seed))
 
     if not levels:

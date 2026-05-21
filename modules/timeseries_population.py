@@ -89,7 +89,7 @@ def render(context: dict) -> None:
             trend_r = st.slider("Tendance annuelle réelle r", -0.15, 0.10, -0.04, step=0.005, format="%.3f")
             sd_noise = st.slider("Variabilité interannuelle (CV)", 0.05, 0.60, 0.20, step=0.01)
             window = st.slider("Fenêtre de lissage (années)", 2, 7, 3)
-            seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=44)
+            seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=44) or 44)
         data = simulate_population_series(n_years, n0, trend_r, sd_noise, int(seed))
     if data["Annee"].nunique() < 2:
         st.error("Les données doivent couvrir au moins 2 années distinctes pour calculer une tendance.")

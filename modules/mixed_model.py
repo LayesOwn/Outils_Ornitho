@@ -253,7 +253,7 @@ def render(context: dict) -> None:
             slope   = st.slider("Pente fixe", 0.0, 0.5, 0.18, step=0.01, key="lmm_sim_slope")
             site_sd = st.slider("Écart-type effet site", 0.0, 5.0, 2.0, step=0.1, key="lmm_sim_sitesd")
             res_sd  = st.slider("Écart-type résiduel", 0.5, 5.0, 1.5, step=0.1, key="lmm_sim_ressd")
-            seed    = st.number_input("Graine", 1, 9999, 42, key="lmm_seed")
+            seed    = int(st.number_input("Graine", 1, 9999, 42, key="lmm_seed") or 42)
             apply_log = False
             min_n_grp = 3
         sim = simulate_mixed_data(n_sites, n_per, slope, site_sd, res_sd, int(seed))

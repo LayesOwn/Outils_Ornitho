@@ -41,7 +41,7 @@ def render(context: dict) -> None:
         loss = st.slider("Pertes annuelles fixes", 0, 100, 6)
         years = st.slider("Horizon", 10, 100, 50)
         iterations = st.slider("Nombre de simulations", 50, 1000, 250, step=50)
-        seed = st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=42)
+        seed = int(st.number_input("Graine aléatoire", min_value=1, max_value=9999, value=42) or 42)
 
     data = _run_pva(n0, mean_r, sd_r, k, years, iterations, threshold, loss, int(seed))
     summary = summarize_pva(data, threshold)

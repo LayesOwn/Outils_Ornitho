@@ -113,7 +113,7 @@ def render(context: dict) -> None:
             n_locs = st.slider("Localisations par individu", 20, 200, 60)
             spread = st.slider("Dispersion spatiale (unités)", 1.0, 20.0, 5.0, step=0.5)
             pct = st.slider("Percentile MCP (%)", 50, 100, 95)
-            seed = st.number_input("Graine", 1, 9999, 7)
+            seed = int(st.number_input("Graine", 1, 9999, 7) or 7)
         data = simulate_gps_data(n_ind, n_locs, spread, int(seed))
 
     individuals = sorted(data["Individu"].unique())

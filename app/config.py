@@ -54,8 +54,8 @@ def _load_sections() -> dict[str, dict[str, ModuleSpec]]:
 
     return {
         "Biostatistique": {
-            "Analyse CSV": ModuleSpec(
-                "Charger un fichier CSV et produire une analyse exploratoire guidée.",
+            "Analyse Fichier": ModuleSpec(
+                "Charger un fichier CSV et le rendre disponible dans tous les modules de cette section.",
                 csv_analysis.render,
             ),
             "Statistiques descriptives": ModuleSpec(
@@ -88,6 +88,10 @@ def _load_sections() -> dict[str, dict[str, ModuleSpec]]:
             ),
         },
         "Dynamique des populations": {
+            "Analyse Fichier": ModuleSpec(
+                "Charger un fichier CSV et le rendre disponible dans tous les modules de cette section.",
+                csv_analysis.render,
+            ),
             "Richesse spécifique et diversité": ModuleSpec(
                 "Calculer Shannon, Simpson, équitabilité et courbes d'accumulation.",
                 diversity.render,
