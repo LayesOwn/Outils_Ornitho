@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -31,109 +33,145 @@ def simulate_mixed_data(
     return pd.concat(rows, ignore_index=True)
 
 
-def fit_mixed_model(data: pd.DataFrame, fixed_col: str, response_col: str, group_col: str) -> dict:
+def _safe_scalar(x) -> float:
+    """Convert any scalar-like (numpy scalar, 0-d array, 1x1 DataFrame…) to float."""
+    arr = np.asarray(x)
+    return float(arr.flat[0])
+
+
+def fit_mixed_model(
+    y: np.ndarray,
+    x: np.ndarray,
+    groups: np.ndarray,
+    pred_label: str = "Prédicteur",
+) -> dict:
+    """Fit a LMM from pre-extracted 1D numpy arrays. All DataFrame extraction
+    is done by the caller to avoid column-name ambiguity issues."""
     try:
-        import statsmodels.api as sm
         import statsmodels.formula.api as smf
-        from scipy import stats as _sp
     except ImportError:
         return {"error": "statsmodels non disponible — pip install statsmodels"}
 
-    # ── Extraction sécurisée par copie directe des valeurs (évite tout problème
-    #    de noms dupliqués ou de types inattendus dans le DataFrame source) ──────
+    sub = pd.DataFrame({"_Y": np.asarray(y, dtype=float),
+                         "_X": np.asarray(x, dtype=float),
+                         "_G": np.asarray(groups, dtype=str)})
+    sub = sub.replace([np.inf, -np.inf], np.nan).dropna()
+
+    n_groups = int(sub["_G"].nunique())
+    if n_groups < 2:
+        return {"error": "Il faut au moins 2 groupes distincts pour un modèle mixte."}
+    if len(sub) < 6:
+        return {"error": f"Seulement {len(sub)} observations valides — minimum 6 requis."}
+    if float(sub["_X"].std()) == 0.0:
+        return {"error": "Le prédicteur X est constant — régression impossible."}
+
+    # ── Ajustement ──────────────────────────────────────────────────────────
     try:
-        y_vals = pd.to_numeric(data[response_col], errors="coerce").values
-        x_vals = pd.to_numeric(data[fixed_col],    errors="coerce").values
-        g_vals = data[group_col].astype(str).values
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = smf.mixedlm("_Y ~ _X", sub, groups=sub["_G"]).fit(
+                reml=True, disp=False
+            )
     except Exception as exc:
-        return {"error": f"Impossible d'extraire les colonnes : {exc}"}
+        return {"error": f"Échec du modèle mixte : {exc}"}
 
-    # DataFrame propre avec noms neutres — aucun risque de collision
-    sub = pd.DataFrame({"_Y": y_vals, "_X": x_vals, "_G": g_vals}).dropna()
-
-    # ── Validations ──────────────────────────────────────────────────────────
-    if sub["_G"].nunique() < 2:
-        return {"error": "Il faut au moins 2 groupes distincts pour ajuster un modèle mixte."}
-    if len(sub) < 5:
-        return {"error": "Moins de 5 observations valides — impossible d'ajuster le modèle."}
-    if sub["_X"].std() == 0:
-        return {"error": f"La variable '{fixed_col}' est constante — régression impossible."}
-
+    # ── Extraction ultra-défensive ───────────────────────────────────────────
     try:
-        result = smf.mixedlm("_Y ~ _X", sub, groups=sub["_G"]).fit(reml=True, disp=False)
+        # Effets fixes (toujours une Series dans statsmodels)
+        fe_params = result.fe_params
+        fe_arr = np.asarray(fe_params).flatten()
+        n_fe = len(fe_arr)
 
-        # ── Effets fixes : on travaille uniquement sur fe_params ─────────
-        fe_params = result.fe_params          # toujours 2 éléments : Intercept + _X
-        n_fe      = len(fe_params)
-
-        # SE : bse_fe d'abord, sinon on coupe bse aux n_fe premiers éléments
+        # SE — bse_fe ou bse, gère DataFrame (pas d'opérateur 'or' sur Series)
         try:
             bse_raw = result.bse_fe
         except AttributeError:
             bse_raw = result.bse
-        if isinstance(bse_raw, pd.DataFrame):
-            bse_raw = bse_raw.iloc[:, 0]
         bse_arr = np.asarray(bse_raw).flatten()[:n_fe]
 
-        # p-values : prefer pvalues_fe (Series, statsmodels ≥ 0.14);
-        # fallback handles DataFrame (some versions return 2-D table)
-        try:
-            pv_series = result.pvalues_fe
-        except AttributeError:
-            pv_series = result.pvalues
-        if isinstance(pv_series, pd.DataFrame):
-            pv_series = pv_series.iloc[:, 0]
-        if hasattr(pv_series, "reindex"):
-            pv_series = pv_series.reindex(fe_params.index)
-        pv_arr = np.asarray(pv_series).flatten()[:n_fe]
+        # p-values — index contient FE + RE, on filtre sur les clés FE
+        pv_raw = result.pvalues
+        fe_keys = list(fe_params.index)
+        if isinstance(pv_raw, pd.DataFrame):
+            pv_arr = pv_raw.values.flatten()[:n_fe]
+        else:
+            pv_series = pd.Series(np.asarray(pv_raw).flatten(), index=pv_raw.index)
+            fe_mask = pv_series.index.isin(fe_keys)
+            pv_arr = pv_series[fe_mask].values[:n_fe] if fe_mask.sum() >= n_fe else np.asarray(pv_raw).flatten()[:n_fe]
 
-        coef_arr = np.asarray(fe_params)
-        z_arr    = np.where(bse_arr != 0, coef_arr / bse_arr, 0.0)
+        z_arr = np.where((bse_arr != 0) & np.isfinite(bse_arr), fe_arr / bse_arr, 0.0)
+        labels = ["Intercept", pred_label][:n_fe]
 
-        labels = ["Intercept", fixed_col][:n_fe]
-
-        fe = pd.DataFrame({
-            "Coef.": coef_arr.round(4),
-            "SE":    bse_arr.round(4),
-            "z":     z_arr.round(3),
-            "p":     [f"{float(v):.2e}" if float(v) < 0.0001 else round(float(v), 4)
-                      for v in pv_arr],
+        fe_table = pd.DataFrame({
+            "Coef.": np.round(fe_arr, 4),
+            "SE":    np.round(bse_arr, 4),
+            "z":     np.round(z_arr, 3),
+            "p":     [
+                (f"{float(v):.2e}" if float(v) < 0.0001 else round(float(v), 4))
+                if np.isfinite(v) else "—"
+                for v in pv_arr
+            ],
         }, index=labels)
-        fe.index.name = "Paramètre"
+        fe_table.index.name = "Paramètre"
 
-        # ── Composantes de variance ──────────────────────────────────────
-        try:
-            var_re = float(result.cov_re.iloc[0, 0])
-        except Exception:
-            var_re = 0.0
-        var_res = float(result.scale)
+        # Composantes de variance — _safe_scalar évite le bool ambiguïté
+        cov_re_obj = result.cov_re
+        var_re = _safe_scalar(cov_re_obj) if cov_re_obj is not None else 0.0
+        var_res = _safe_scalar(result.scale)
         icc = var_re / (var_re + var_res) if (var_re + var_res) > 0 else 0.0
 
-        # ── AIC (fallback manuel si NaN) ─────────────────────────────────
-        aic_val = float(result.aic)
-        if np.isnan(aic_val):
-            aic_val = -2.0 * float(result.llf) + 2.0 * n_fe
+        # AIC
+        aic_raw = _safe_scalar(result.aic)
+        aic_val = aic_raw if np.isfinite(aic_raw) else -2.0 * _safe_scalar(result.llf) + 2.0 * n_fe
 
-        # ── Nombre de groupes ────────────────────────────────────────────
-        try:
-            n_groups = int(result.ngroups)
-        except AttributeError:
-            n_groups = int(sub["_G"].nunique())
+        # Fitted / résidus — toujours 1D
+        fitted = np.asarray(result.fittedvalues).flatten()
+        resid  = np.asarray(result.resid).flatten()
 
         return {
-            "fixed_effects": fe,
+            "fixed_effects": fe_table,
             "var_re":   round(var_re, 4),
             "var_res":  round(var_res, 4),
             "icc":      round(icc, 4),
-            "fitted":   np.asarray(result.fittedvalues),
-            "resid":    np.asarray(result.resid),
+            "fitted":   fitted,
+            "resid":    resid,
             "aic":      round(aic_val, 2),
             "n_groups": n_groups,
+            "n_obs":    len(sub),
+            "group_sizes": sub.groupby("_G").size().to_dict(),
         }
 
     except Exception as exc:
-        return {"error": f"Échec d'ajustement : {exc}"}
+        return {"error": f"Extraction des résultats impossible : {exc}"}
 
+
+# ─── helpers ────────────────────────────────────────────────────────────────
+
+def _get_col_values(df: pd.DataFrame, col: str) -> np.ndarray:
+    """Safe column extraction — always returns 1D array even with duplicate names."""
+    raw = df[col]
+    if isinstance(raw, pd.DataFrame):
+        raw = raw.iloc[:, 0]
+    return np.asarray(raw).flatten()
+
+
+def _group_stats(df: pd.DataFrame, grp_col: str, val_col: str) -> pd.DataFrame:
+    g = _get_col_values(df, grp_col)
+    v = _get_col_values(df, val_col)
+    sub = pd.DataFrame({"g": g, "v": v}).dropna()
+    rows = []
+    for name, grp in sub.groupby("g"):
+        rows.append({
+            "Groupe": name,
+            "n": len(grp),
+            "Moyenne": round(grp["v"].mean(), 3),
+            "Médiane": round(grp["v"].median(), 3),
+            "Écart-type": round(grp["v"].std(), 3),
+        })
+    return pd.DataFrame(rows)
+
+
+# ─── render ─────────────────────────────────────────────────────────────────
 
 def render(context: dict) -> None:
     section("Modèles mixtes (LMM)", "Effets aléatoires pour données groupées ou répétées.")
@@ -143,69 +181,154 @@ def render(context: dict) -> None:
         "En ornithologie, les données de suivi sont presque toujours groupées (par site, colonie ou individu) : ignorer cette structure gonfle artificiellement les faux positifs.",
     )
 
+    is_data = context.get("data") is not None
     left, right = st.columns([0.9, 1.55])
 
-    if context.get("data") is not None:
+    # ── Sélection des variables ─────────────────────────────────────────────
+    if is_data:
         data_src = context["data"]
         num_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
-        if len(num_cols) < 2 or not cat_cols:
+
+        # Colonnes catégorielles élargies : accepter aussi les numériques à faible cardinalité
+        low_card_num = [c for c in num_cols if data_src[c].nunique(dropna=True) <= 20]
+        grp_options = cat_cols + [c for c in low_card_num if c not in cat_cols]
+
+        if len(num_cols) < 2 or not grp_options:
             data_incompatible(
-                "Ce module nécessite au moins deux colonnes numériques (variable réponse Y et prédicteur X) "
-                "et une colonne catégorielle représentant les groupes (sites, individus, sessions).",
+                "Ce module nécessite au moins deux colonnes numériques (Y et X) et une colonne de groupes "
+                "(catégorielle ou numérique à faible cardinalité, ex. : Site, Individu, Année).",
                 [
-                    "Vérifiez que votre fichier contient bien des colonnes de mesures numériques (masse, longueur, abondance…).",
-                    "Ajoutez une colonne identifiant les groupes (ex. : Site, Individu, Année) — elle doit être du texte ou un code.",
-                    "Si toutes vos colonnes sont numériques, utilisez le module <b>Corrélation et régression</b> à la place.",
-                    "Téléchargez l'exemple CSV ci-dessous pour voir la structure attendue.",
+                    "Vérifiez que votre fichier contient des mesures numériques (masse, longueur, abondance…).",
+                    "Ajoutez une colonne identifiant les groupes — texte ou code numérique avec ≤ 20 modalités.",
+                    "Si toutes les colonnes sont des mesures continues, utilisez <b>Corrélation et régression</b>.",
+                    "Téléchargez l'exemple CSV pour voir la structure attendue.",
                 ],
             )
             return
+
         with left:
             csv_template_button(
                 pd.DataFrame({
-                    "Site": ["A", "A", "A", "B", "B", "B", "C", "C"],
-                    "Envergure_mm": [72, 75, 78, 68, 71, 74, 80, 82],
-                    "Masse_g": [18.2, 19.1, 20.0, 16.8, 17.9, 18.5, 21.1, 21.8],
+                    "Site": ["A", "A", "A", "B", "B", "B", "C", "C", "C"],
+                    "Envergure_mm": [72, 75, 78, 68, 71, 74, 80, 82, 79],
+                    "Masse_g": [18.2, 19.1, 20.0, 16.8, 17.9, 18.5, 21.1, 21.8, 20.5],
                 }),
                 "template_mixedlm.csv",
             )
-            resp = st.selectbox("Variable réponse (Y)", num_cols)
-            pred = st.selectbox("Prédicteur fixe (X)", [c for c in num_cols if c != resp])
-            grp = st.selectbox("Effet aléatoire (groupe)", cat_cols)
-        data = data_src[[resp, pred, grp]].dropna()
+            st.markdown("**Variables du modèle**")
+            resp = st.selectbox("Variable réponse Y", num_cols, key="lmm_resp")
+            remaining_num = [c for c in num_cols if c != resp]
+            pred = st.selectbox("Prédicteur fixe X", remaining_num, key="lmm_pred") if remaining_num else None
+            grp  = st.selectbox("Effet aléatoire (groupe)", grp_options, key="lmm_grp")
+
+            st.markdown("**Options**")
+            apply_log = st.checkbox("Log-transformation de Y (log(Y+1))", value=False, key="lmm_log",
+                                    help="Utile pour des comptages ou des valeurs très asymétriques")
+            min_n_grp = st.slider("Taille minimale par groupe", 2, 10, 3, key="lmm_min_n",
+                                  help="Groupes avec moins de N observations sont exclus")
+
+        if pred is None:
+            st.warning("Il faut au moins deux colonnes numériques distinctes pour X et Y.")
+            return
+
+        # Extraction sécurisée — toujours 1D pour éviter l'ambiguïté DataFrame
+        y_raw = pd.to_numeric(_get_col_values(data_src, resp),   errors="coerce")
+        x_raw = pd.to_numeric(_get_col_values(data_src, pred),   errors="coerce")
+        g_raw = _get_col_values(data_src, grp).astype(str)
+
+        tmp = pd.DataFrame({"y": y_raw, "x": x_raw, "g": g_raw}).dropna()
+
+        # Exclure les groupes trop petits
+        grp_counts = tmp["g"].value_counts()
+        valid_groups = grp_counts[grp_counts >= min_n_grp].index
+        tmp = tmp[tmp["g"].isin(valid_groups)].copy()
+
         resp_name, pred_name, grp_name = resp, pred, grp
+
     else:
         with left:
-            n_sites = st.slider("Nombre de sites", 5, 30, 12)
-            n_per = st.slider("Individus par site", 3, 20, 8)
-            slope = st.slider("Pente fixe (masse ~ envergure)", 0.0, 0.5, 0.18, step=0.01)
-            site_sd = st.slider("Écart-type effet site", 0.0, 5.0, 2.0, step=0.1)
-            res_sd = st.slider("Écart-type résiduel", 0.5, 5.0, 1.5, step=0.1)
-            seed = st.number_input("Graine", 1, 9999, 42)
-        data = simulate_mixed_data(n_sites, n_per, slope, site_sd, res_sd, int(seed))
+            n_sites = st.slider("Nombre de sites", 5, 30, 12, key="lmm_sim_sites")
+            n_per   = st.slider("Individus par site", 3, 20, 8, key="lmm_sim_nper")
+            slope   = st.slider("Pente fixe", 0.0, 0.5, 0.18, step=0.01, key="lmm_sim_slope")
+            site_sd = st.slider("Écart-type effet site", 0.0, 5.0, 2.0, step=0.1, key="lmm_sim_sitesd")
+            res_sd  = st.slider("Écart-type résiduel", 0.5, 5.0, 1.5, step=0.1, key="lmm_sim_ressd")
+            seed    = st.number_input("Graine", 1, 9999, 42, key="lmm_seed")
+            apply_log = False
+            min_n_grp = 3
+        sim = simulate_mixed_data(n_sites, n_per, slope, site_sd, res_sd, int(seed))
+        tmp = pd.DataFrame({"y": sim["Masse_g"], "x": sim["Envergure_mm"], "g": sim["Site"]})
         resp_name, pred_name, grp_name = "Masse_g", "Envergure_mm", "Site"
 
-    res = fit_mixed_model(data, pred_name, resp_name, grp_name)
+    # ── Aperçu des données sélectionnées ────────────────────────────────────
+    if is_data:
+        n_excluded = len(pd.DataFrame({"y": y_raw, "x": x_raw, "g": g_raw}).dropna()) - len(tmp)
+        n_groups_ok = tmp["g"].nunique()
+
+        if len(tmp) < 6 or n_groups_ok < 2:
+            data_incompatible(
+                f"Après filtrage (groupes < {min_n_grp} observations exclus), il reste "
+                f"{len(tmp)} observation(s) dans {n_groups_ok} groupe(s) — insuffisant pour le modèle.",
+                [
+                    f"Réduisez la taille minimale par groupe (actuellement {min_n_grp}).",
+                    "Vérifiez que la colonne de groupe choisie a bien plusieurs modalités avec des données.",
+                    "Utilisez <b>Corrélation et régression</b> si vous n'avez pas de structure groupée.",
+                ],
+            )
+            return
+
+        with left:
+            st.markdown("**Aperçu par groupe**")
+            gstats = _group_stats(tmp, "g", "y")
+            tiny = gstats[gstats["n"] < 5]
+            if len(tiny) > 0:
+                st.caption(f"⚠ {len(tiny)} groupe(s) avec < 5 obs — convergence incertaine.")
+            st.dataframe(gstats.rename(columns={"Groupe": grp_name, "Moyenne": resp_name[:12]}),
+                         use_container_width=True, hide_index=True)
+            if n_excluded > 0:
+                st.caption(f"ℹ {n_excluded} ligne(s) exclue(s) (NA ou groupe trop petit).")
+
+    # ── Transformation ──────────────────────────────────────────────────────
+    y_fit = np.log1p(tmp["y"].values) if apply_log else tmp["y"].values
+    x_fit = tmp["x"].values
+    g_fit = tmp["g"].values
+
+    if apply_log:
+        display_resp = f"log(1+{resp_name})"
+    else:
+        display_resp = resp_name
+
+    # ── Ajustement ──────────────────────────────────────────────────────────
+    with st.spinner("Ajustement du modèle mixte…"):
+        res = fit_mixed_model(y_fit, x_fit, g_fit, pred_label=pred_name)
 
     if "error" in res:
-        st.error(res["error"])
+        data_incompatible(
+            f"Le modèle mixte n'a pas pu être ajusté : {res['error']}",
+            [
+                "Réduisez la taille minimale par groupe ou vérifiez que les groupes ont suffisamment de variance.",
+                "Essayez la log-transformation si la variable réponse est très asymétrique.",
+                f"Vérifiez que {pred_name} n'est pas constant dans certains groupes.",
+                "Si le problème persiste, utilisez <b>Corrélation et régression</b> (OLS sans effet groupe).",
+            ],
+        )
         return
 
+    # ── Visualisation ───────────────────────────────────────────────────────
     with right:
         fig = go.Figure()
         palette = ["#39d98a", "#4dabf7", "#ff6b6b", "#ffd166", "#b197fc",
                    "#20c997", "#fd7e14", "#e64980", "#74c0fc", "#a9e34b"]
-        groups = sorted(data[grp_name].unique())
-        for i, g in enumerate(groups[:10]):
-            mask = data[grp_name] == g
+        unique_groups = sorted(tmp["g"].unique().tolist())
+        for i, g in enumerate(unique_groups[:10]):
+            mask = (tmp["g"] == g).values   # numpy bool array — jamais ambigu
             fig.add_scatter(
-                x=data.loc[mask, pred_name], y=data.loc[mask, resp_name],
+                x=x_fit[mask], y=y_fit[mask],
                 mode="markers", name=str(g),
                 marker={"size": 6, "color": palette[i % len(palette)], "opacity": 0.7},
                 legendgroup=str(g),
             )
-        x_range = np.linspace(data[pred_name].min(), data[pred_name].max(), 120)
+        x_range = np.linspace(float(x_fit.min()), float(x_fit.max()), 120)
         fe = res["fixed_effects"]
         intercept = float(fe.iloc[0]["Coef."])
         slope_val = float(fe.iloc[1]["Coef."]) if len(fe) > 1 else 0.0
@@ -213,43 +336,48 @@ def render(context: dict) -> None:
             x=x_range, y=intercept + slope_val * x_range,
             mode="lines", name="Effet fixe global",
             line={"width": 3, "dash": "dash", "color": "#ffffff"},
-            showlegend=True,
         )
-        fig.update_layout(xaxis_title=pred_name, yaxis_title=resp_name)
+        fig.update_layout(xaxis_title=pred_name, yaxis_title=display_resp)
         style_figure(fig)
         st.plotly_chart(fig, use_container_width=True)
 
+    # ── Métriques ───────────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("AIC", f"{res['aic']:.1f}")
     c2.metric("ICC", f"{res['icc']:.3f}", help="Part de variance due aux groupes (0–1)")
-    c3.metric("Var. aléatoire", f"{res['var_re']:.3f}", help=f"Variance entre {grp_name}")
-    c4.metric("Var. résiduelle", f"{res['var_res']:.3f}")
+    c3.metric("Var. aléatoire", f"{res['var_re']:.4f}", help=f"Variance entre {grp_name}")
+    c4.metric("Var. résiduelle", f"{res['var_res']:.4f}")
 
     st.markdown("**Effets fixes**")
     st.dataframe(res["fixed_effects"], use_container_width=True)
 
     icc_pct = res["icc"] * 100
-    explain(
-        f"ICC = {res['icc']:.3f} : {icc_pct:.1f} % de la variance totale est attribuable aux différences entre {grp_name}. "
-        + ("Ignorer cet effet de groupe biaiserait les p-values vers le bas." if icc_pct > 10
-           else "La structure de groupe contribue peu à la variance totale ici.")
-    )
+    if icc_pct > 30:
+        icc_msg = f"ICC élevé ({icc_pct:.1f} %) — la structure de groupe est très importante, le LMM est bien justifié."
+    elif icc_pct > 10:
+        icc_msg = f"ICC modéré ({icc_pct:.1f} %) — ignorer les groupes biaiserait les p-values."
+    else:
+        icc_msg = f"ICC faible ({icc_pct:.1f} %) — la structure de groupe contribue peu ; une régression OLS pourrait suffire."
+    explain(icc_msg)
 
+    # ── Diagnostics ─────────────────────────────────────────────────────────
     with st.expander("Diagnostics résidus"):
         fig_r = go.Figure()
         fig_r.add_scatter(
-            x=res["fitted"], y=res["resid"], mode="markers",
+            x=res["fitted"].tolist(), y=res["resid"].tolist(), mode="markers",
             marker={"size": 5, "color": "#4dabf7", "opacity": 0.6},
         )
         fig_r.add_hline(y=0, line_dash="dash", line_color="#39d98a")
         fig_r.update_layout(xaxis_title="Valeurs ajustées", yaxis_title="Résidus", height=270)
         style_figure(fig_r)
         st.plotly_chart(fig_r, use_container_width=True)
+        st.caption("Un nuage aléatoire autour de 0 confirme l'homoscédasticité. Un entonnoir ou une courbe signale une hypothèse violée.")
 
+    # ── Pédagogie ───────────────────────────────────────────────────────────
     teacher_note(
         f"Un ICC > 0.1 justifie l'usage d'un modèle mixte (ici ICC = {res['icc']:.3f} sur {res['n_groups']} groupes). "
-        f"REML est recommandé pour estimer les composantes de variance ; utiliser ML uniquement pour comparer "
-        f"deux modèles avec des effets fixes différents via un test du rapport de vraisemblance.",
+        "REML est recommandé pour estimer les composantes de variance ; utiliser ML uniquement pour comparer "
+        "deux modèles avec des effets fixes différents via un test du rapport de vraisemblance.",
         context,
     )
     teacher_formula(
@@ -263,8 +391,8 @@ def render(context: dict) -> None:
     teacher_pitfalls(
         [
             "Utiliser ML au lieu de REML pour estimer les composantes de variance : ML sous-estime σ²_b.",
-            "Traiter le groupe comme effet fixe quand il représente un échantillon d'une population de groupes : l'effet aléatoire est alors plus approprié.",
-            "Ignorer l'ICC et utiliser OLS quand les observations sont groupées : les erreurs-type des effets fixes sont sous-estimées → faux positifs.",
+            "Traiter le groupe comme effet fixe quand il représente un échantillon d'une population de groupes.",
+            "Ignorer l'ICC et utiliser OLS quand les observations sont groupées : les SE des effets fixes sont sous-estimées → faux positifs.",
             "Ne pas vérifier la normalité des effets aléatoires (QQ-plot des b_j estimés).",
         ],
         context,
@@ -272,11 +400,12 @@ def render(context: dict) -> None:
     learning_notes(
         "L'effet aléatoire absorbe la corrélation intra-groupe : les p-values des effets fixes sont fiables.",
         "Le LMM suppose des effets aléatoires gaussiens et une variance résiduelle homogène.",
-        None if context.get("data") else "Augmente la SD des sites : à partir de quel ICC le modèle OLS produit-il de faux positifs ?",
+        None if is_data else "Augmente la SD des sites : à partir de quel ICC le modèle OLS produit-il de faux positifs ?",
     )
 
+    # ── Export ──────────────────────────────────────────────────────────────
     pdf_lines = [
-        f"Modele : {resp_name} ~ {pred_name} + (1 | {grp_name}). N = {len(data)}, groupes = {res['n_groups']}.",
+        f"Modele : {display_resp} ~ {pred_name} + (1 | {grp_name}). N = {res['n_obs']}, groupes = {res['n_groups']}.",
         f"ICC = {res['icc']:.3f}, variance aleatoire = {res['var_re']:.4f}, residuelle = {res['var_res']:.4f}.",
         f"AIC = {res['aic']:.1f}.",
     ]
