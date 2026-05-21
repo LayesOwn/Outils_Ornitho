@@ -8,7 +8,7 @@ import streamlit as st
 from scipy import stats
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def generate_two_groups(seed: int, n_a: int, n_b: int, mean_a: float, mean_b: float, sd: float) -> pd.DataFrame:
@@ -46,7 +46,16 @@ def render(context: dict) -> None:
         numeric_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if not numeric_cols or not cat_cols:
-            st.warning("Le fichier doit contenir au moins une colonne numérique et une colonne catégorielle.")
+            data_incompatible(
+                "Ce module compare des groupes : il nécessite au moins une colonne numérique (la mesure à comparer) "
+                "et une colonne catégorielle (les groupes, ex. : Habitat, Sexe, Site).",
+                [
+                    "Vérifiez que votre fichier contient une colonne de mesures numériques (abondance, masse, longueur…).",
+                    "Ajoutez une colonne de groupe avec des étiquettes texte (ex. : 'Forêt', 'Savane', 'M', 'F').",
+                    "Si toutes vos colonnes sont numériques, encodez les groupes en texte et rechargez le fichier.",
+                    "Téléchargez l'exemple CSV pour voir la structure Habitat / Succès_repro attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(
@@ -54,14 +63,46 @@ def render(context: dict) -> None:
                 "template_tests_stat.csv",
             )
             value_col = st.selectbox("Variable numérique à comparer", numeric_cols)
-            group_col = st.selectbox("Variable de groupe (2 à 6 modalités)", cat_cols)
-        sub = data_src[[group_col, value_col]].dropna()
-        groups = sub[group_col].unique()
+            # Accepter toutes les colonnes catégorielles, sans limite de modalités
+            all_cat = [c for c in context["data"].columns if c != value_col
+                       and context["data"][c].nunique(dropna=True) >= 2]
+            if not all_cat:
+                all_cat = cat_cols
+            group_col = st.selectbox("Variable de groupe", all_cat)
+
+        sub_all = data_src[[group_col, value_col]].dropna()
+        all_groups = sorted(sub_all[group_col].astype(str).unique().tolist())
+
+        # Si trop de modalités, proposer un filtre
+        selected_groups = all_groups
+        if len(all_groups) > 6:
+            with left:
+                st.caption(f"⚠ {len(all_groups)} modalités détectées — sélectionnez 2 à 6 groupes à comparer :")
+                selected_groups = st.multiselect(
+                    "Groupes à comparer",
+                    options=all_groups,
+                    default=all_groups[:4],
+                    max_selections=6,
+                )
+            if len(selected_groups) < 2:
+                data_incompatible(
+                    "Aucun groupe sélectionné ou un seul groupe sélectionné — le test nécessite au minimum 2 groupes à comparer.",
+                    ["Sélectionnez au moins 2 groupes dans la liste ci-dessus."],
+                )
+                return
+
+        sub = sub_all[sub_all[group_col].astype(str).isin(selected_groups)].copy()
+        sub[group_col] = sub[group_col].astype(str)
+        groups = np.array(selected_groups)
+
         if len(groups) < 2:
-            st.warning(f"La colonne **{group_col}** ne contient qu'une seule modalité.")
-            return
-        if len(groups) > 6:
-            st.warning(f"La colonne **{group_col}** contient {len(groups)} modalités. Sélectionnez une colonne avec 2 à 6 groupes.")
+            data_incompatible(
+                f"La colonne <b>{group_col}</b> ne contient qu'une seule modalité — impossible de comparer des groupes.",
+                [
+                    "Choisissez une autre colonne de groupe qui contient au moins 2 valeurs distinctes.",
+                    "Vérifiez que les valeurs manquantes ne masquent pas une deuxième modalité.",
+                ],
+            )
             return
         data = sub
         hab_label, val_label = group_col, value_col
@@ -112,7 +153,14 @@ def render(context: dict) -> None:
             if len(data.loc[data[hab_label] == g, val_label].dropna()) >= 2
         ]
         if len(valid_series) < 2:
-            st.warning("Il faut au moins 2 groupes avec 2 observations chacun pour effectuer l'ANOVA / Kruskal-Wallis.")
+            data_incompatible(
+                "Pas assez de groupes avec des données suffisantes : l'ANOVA et le test de Kruskal-Wallis nécessitent au moins 2 groupes avec chacun au moins 2 observations.",
+                [
+                    "Vérifiez que les groupes sélectionnés ne contiennent pas trop de valeurs manquantes.",
+                    "Réduisez le nombre de groupes ou augmentez la taille de l'échantillon par groupe.",
+                    "Utilisez un test t (2 groupes) ou Mann-Whitney si vous n'avez que 2 groupes.",
+                ],
+            )
             return
         anova_f, anova_p = stats.f_oneway(*valid_series)
         kruskal_h, kruskal_p = stats.kruskal(*valid_series)

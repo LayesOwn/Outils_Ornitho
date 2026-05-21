@@ -7,7 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure
 
 
 def compute_diversity_indices(counts: np.ndarray) -> dict[str, float]:
@@ -75,7 +75,15 @@ def render(context: dict) -> None:
         numeric_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if len(numeric_cols) < 2:
-            st.warning("Le fichier doit contenir au moins 2 colonnes numériques (une par espèce).")
+            data_incompatible(
+                "Ce module calcule la diversité à partir d'une matrice site × espèces : il faut au moins 2 colonnes numériques représentant des abondances par espèce.",
+                [
+                    "Chaque colonne numérique doit représenter le comptage d'une espèce (ex. : Esp01, Esp02…).",
+                    "Vérifiez que les abondances ne sont pas stockées en une seule colonne 'Espèce / Abondance' — dans ce cas, pivotez le tableau d'abord.",
+                    "Si votre fichier ne contient qu'une colonne, le module <b>Statistiques descriptives</b> est plus adapté.",
+                    "Téléchargez l'exemple CSV pour voir la structure site × espèces attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

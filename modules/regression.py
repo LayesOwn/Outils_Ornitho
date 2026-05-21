@@ -6,7 +6,7 @@ from scipy import stats
 
 from core.export import build_pdf_report
 from data.examples import wing_mass_dataset
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def render(context: dict) -> None:
@@ -27,7 +27,14 @@ def render(context: dict) -> None:
         data_src = context["data"]
         numeric_cols = context["numeric_columns"]
         if len(numeric_cols) < 2:
-            st.warning("Le fichier doit contenir au moins deux colonnes numériques.")
+            data_incompatible(
+                "Ce module nécessite au moins deux colonnes numériques pour calculer une corrélation ou ajuster une régression.",
+                [
+                    "Vérifiez que votre fichier contient deux mesures quantitatives (ex. : longueur de l'aile et masse corporelle).",
+                    "Si une colonne numérique est lue comme texte, assurez-vous que les décimales utilisent '.' ou ',' (converti automatiquement).",
+                    "Téléchargez l'exemple CSV pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(
@@ -48,13 +55,25 @@ def render(context: dict) -> None:
         x_col, y_col = "Longueur de l'aile (mm)", "Masse corporelle (g)"
 
     if len(data) < 3:
-        st.warning("Pas assez d'observations valides (minimum 3) pour ajuster une régression.")
+        data_incompatible(
+            f"Seulement {len(data)} observation(s) valide(s) après suppression des valeurs manquantes — il en faut au moins 3.",
+            [
+                "Vérifiez que les colonnes sélectionnées ne contiennent pas trop de valeurs vides (NA).",
+                "Utilisez le module <b>Analyse CSV</b> pour identifier et corriger les lignes incomplètes.",
+            ],
+        )
         return
 
     x = data[x_col]
     y = data[y_col]
     if x.std() == 0:
-        st.warning(f"La colonne **{x_col}** est constante — régression impossible.")
+        data_incompatible(
+            f"La colonne <b>{x_col}</b> est constante (toutes les valeurs sont identiques) — la régression est impossible.",
+            [
+                "Choisissez une autre variable explicative X qui varie réellement dans vos données.",
+                f"Vérifiez que la colonne <b>{x_col}</b> n'est pas un identifiant ou un code fixe.",
+            ],
+        )
         return
     slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
     data["Prédiction"] = intercept + slope * x

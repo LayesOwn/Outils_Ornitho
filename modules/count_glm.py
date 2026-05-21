@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 _HABITATS = ["Forêt", "Savane", "Zone humide", "Agroécosystème"]
 _HAB_EFFECTS = {"Forêt": 1.4, "Savane": 0.8, "Zone humide": 1.8, "Agroécosystème": 0.5}
@@ -95,7 +95,14 @@ def render(context: dict) -> None:
         numeric_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if not numeric_cols:
-            st.warning("Le fichier ne contient pas de colonne numérique exploitable.")
+            data_incompatible(
+                "Aucune colonne numérique détectée. Ce module nécessite au moins une colonne de comptages (entiers ≥ 0) pour ajuster un GLM.",
+                [
+                    "Vérifiez que la colonne d'abondance contient bien des nombres entiers (0, 1, 2…).",
+                    "Si les valeurs sont séparées par des virgules et reconnues comme texte, essayez le séparateur ';' dans la sidebar.",
+                    "Téléchargez l'exemple CSV pour voir les colonnes Abondance, Habitat, Annee et Effort attendues.",
+                ],
+            )
             return
         with left:
             csv_template_button(

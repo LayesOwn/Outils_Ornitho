@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def simulate_mixed_data(
@@ -68,15 +68,24 @@ def fit_mixed_model(data: pd.DataFrame, fixed_col: str, response_col: str, group
 
         # SE : bse_fe d'abord, sinon on coupe bse aux n_fe premiers éléments
         try:
-            bse_arr = np.asarray(result.bse_fe)[:n_fe]
+            bse_raw = result.bse_fe
         except AttributeError:
-            bse_arr = np.asarray(result.bse)[:n_fe]
+            bse_raw = result.bse
+        if isinstance(bse_raw, pd.DataFrame):
+            bse_raw = bse_raw.iloc[:, 0]
+        bse_arr = np.asarray(bse_raw).flatten()[:n_fe]
 
-        # p-values : on filtre explicitement sur l'index de fe_params
-        pv_series = result.pvalues
+        # p-values : prefer pvalues_fe (Series, statsmodels ≥ 0.14);
+        # fallback handles DataFrame (some versions return 2-D table)
+        try:
+            pv_series = result.pvalues_fe
+        except AttributeError:
+            pv_series = result.pvalues
+        if isinstance(pv_series, pd.DataFrame):
+            pv_series = pv_series.iloc[:, 0]
         if hasattr(pv_series, "reindex"):
             pv_series = pv_series.reindex(fe_params.index)
-        pv_arr = np.asarray(pv_series)[:n_fe]
+        pv_arr = np.asarray(pv_series).flatten()[:n_fe]
 
         coef_arr = np.asarray(fe_params)
         z_arr    = np.where(bse_arr != 0, coef_arr / bse_arr, 0.0)
@@ -141,7 +150,16 @@ def render(context: dict) -> None:
         num_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if len(num_cols) < 2 or not cat_cols:
-            st.warning("Il faut au moins deux colonnes numériques (Y et X) et une colonne catégorielle de groupes.")
+            data_incompatible(
+                "Ce module nécessite au moins deux colonnes numériques (variable réponse Y et prédicteur X) "
+                "et une colonne catégorielle représentant les groupes (sites, individus, sessions).",
+                [
+                    "Vérifiez que votre fichier contient bien des colonnes de mesures numériques (masse, longueur, abondance…).",
+                    "Ajoutez une colonne identifiant les groupes (ex. : Site, Individu, Année) — elle doit être du texte ou un code.",
+                    "Si toutes vos colonnes sont numériques, utilisez le module <b>Corrélation et régression</b> à la place.",
+                    "Téléchargez l'exemple CSV ci-dessous pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

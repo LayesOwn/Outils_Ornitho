@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure
 
 
 def generate_counts(seed: int, sites: int, mean_count: int, dispersion: float) -> pd.DataFrame:
@@ -37,7 +37,15 @@ def render(context: dict) -> None:
         numeric_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if not numeric_cols:
-            st.warning("Le fichier ne contient pas de colonne numérique exploitable.")
+            data_incompatible(
+                "Aucune colonne numérique détectée dans le fichier chargé. Ce module nécessite au moins une variable quantitative (abondance, masse, longueur…).",
+                [
+                    "Vérifiez que les valeurs numériques n'utilisent pas un format non reconnu (ex. : espaces comme séparateurs de milliers).",
+                    "Assurez-vous que les décimales sont '.' ou ',' — ORNI-LAB convertit automatiquement.",
+                    "Si votre fichier ne contient que des codes ou des catégories, ce module n'est pas adapté.",
+                    "Téléchargez l'exemple CSV pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

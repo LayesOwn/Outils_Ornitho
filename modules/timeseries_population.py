@@ -7,7 +7,7 @@ import streamlit as st
 from scipy import stats
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
 
 
 def simulate_population_series(n_years: int, n0: int, trend_r: float, sd_noise: float, seed: int) -> pd.DataFrame:
@@ -56,7 +56,15 @@ def render(context: dict) -> None:
         data_src = context["data"]
         numeric_cols = context["numeric_columns"]
         if len(numeric_cols) < 2:
-            st.warning("Le fichier doit contenir au moins une colonne année et une colonne abondance.")
+            data_incompatible(
+                "Ce module analyse une série temporelle d'abondances : il nécessite au moins deux colonnes numériques — une pour les années et une pour les effectifs.",
+                [
+                    "Vérifiez que votre fichier contient une colonne d'années (ex. : Annee, Year) et une colonne d'abondances (ex. : Effectif, N).",
+                    "Si votre fichier ne contient qu'une seule colonne numérique, ajoutez les années correspondantes.",
+                    "Assurez-vous que les valeurs ne sont pas formatées comme du texte — vérifiez l'absence de symboles, d'unités ou d'espaces dans les cellules.",
+                    "Téléchargez l'exemple CSV (colonnes Annee / Effectif) pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

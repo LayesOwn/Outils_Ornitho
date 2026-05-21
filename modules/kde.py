@@ -7,7 +7,7 @@ import streamlit as st
 from scipy.stats import gaussian_kde
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 _PALETTE = ["#39d98a", "#4dabf7", "#ff6b6b", "#ffd166", "#b197fc", "#20c997", "#fd7e14", "#e64980"]
 
@@ -87,7 +87,15 @@ def render(context: dict) -> None:
         num_cols = context["numeric_columns"]
         cat_cols = context["categorical_columns"]
         if len(num_cols) < 2:
-            st.warning("Il faut au moins deux colonnes numériques (X et Y).")
+            data_incompatible(
+                "Ce module nécessite deux colonnes numériques de coordonnées GPS (X/longitude et Y/latitude) pour estimer la densité de probabilité.",
+                [
+                    "Vérifiez que votre fichier contient des colonnes de coordonnées numériques (ex. : X, Y ou Longitude, Latitude).",
+                    "Les coordonnées doivent être des nombres décimaux — vérifiez que les virgules décimales sont bien interprétées.",
+                    "Si vous avez des coordonnées en DMS, convertissez-les en degrés décimaux avant l'import.",
+                    "Téléchargez l'exemple CSV pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

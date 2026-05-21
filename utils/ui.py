@@ -858,6 +858,24 @@ def explain(text: str) -> None:
     )
 
 
+def data_incompatible(reason: str, solutions: list[str]) -> None:
+    """Affiche un message structuré quand les données chargées sont incompatibles avec ce module."""
+    sols = "".join(f"<li>{s}</li>" for s in solutions)
+    st.markdown(
+        f'<div style="background:rgba(255,107,107,0.10);border:1px solid rgba(255,107,107,0.35);'
+        f'border-left:4px solid #ff6b6b;border-radius:8px;padding:1rem 1.2rem;margin:0.8rem 0;">'
+        f'<div style="color:#ff6b6b;font-weight:700;font-size:0.82rem;letter-spacing:0.06em;'
+        f'text-transform:uppercase;margin-bottom:0.5rem;">⚠️ Données incompatibles avec ce module</div>'
+        f'<div style="color:#f5d0d0;font-size:0.93rem;margin-bottom:0.75rem;">{reason}</div>'
+        f'<div style="color:#ffd166;font-weight:700;font-size:0.80rem;letter-spacing:0.04em;'
+        f'margin-bottom:0.35rem;">💡 Solutions possibles</div>'
+        f'<ul style="color:#e4d8c4;font-size:0.88rem;line-height:1.65;margin:0;padding-left:1.3rem;">'
+        f'{sols}</ul>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def section(title: str, caption: str | None = None) -> None:
     st.subheader(title)
     if caption:

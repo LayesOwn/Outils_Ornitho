@@ -8,7 +8,7 @@ from scipy.optimize import minimize_scalar
 from scipy.special import erf, erfinv
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def _effective_strip_width(sigma: float, strip_width: float) -> float:
@@ -68,7 +68,15 @@ def render(context: dict) -> None:
         data_src = context["data"]
         numeric_cols = context["numeric_columns"]
         if not numeric_cols:
-            st.warning("Le fichier ne contient pas de colonne numérique de distances.")
+            data_incompatible(
+                "Aucune colonne numérique détectée. Ce module nécessite une colonne de distances perpendiculaires (en mètres) mesurées lors des transects.",
+                [
+                    "Vérifiez que votre fichier contient une colonne de distances numériques (ex. : Distance_m).",
+                    "Assurez-vous que les valeurs décimales utilisent '.' ou ',' — ORNI-LAB convertit automatiquement.",
+                    "Si votre colonne est reconnue comme texte, essayez un autre séparateur CSV dans la sidebar.",
+                    "Téléchargez l'exemple CSV pour voir la structure attendue.",
+                ],
+            )
             return
         with left:
             csv_template_button(

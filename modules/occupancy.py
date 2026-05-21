@@ -7,7 +7,7 @@ import streamlit as st
 from scipy.optimize import minimize
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
 
 
 def simulate_detection_history(n_sites: int, n_visits: int, psi: float, p: float, seed: int) -> np.ndarray:
@@ -67,9 +67,14 @@ def render(context: dict) -> None:
         # Detect binary columns (values 0 or 1 only)
         binary_cols = [c for c in numeric_cols if data_src[c].dropna().isin([0, 1]).all() and data_src[c].notna().sum() >= 5]
         if len(binary_cols) < 2:
-            st.warning(
-                "Aucune paire de colonnes binaires (0/1) détectée. "
-                "Le modèle d'occupation attend une colonne par visite avec 0 = non détecté, 1 = détecté."
+            data_incompatible(
+                "Le modèle d'occupation nécessite au moins 2 colonnes binaires (valeurs 0/1 uniquement), une par visite de terrain : 0 = espèce non détectée, 1 = espèce détectée.",
+                [
+                    "Vérifiez que votre fichier contient bien des colonnes de présence/absence encodées en 0 et 1.",
+                    "Si vos données sont au format long (une ligne par observation), pivotez d'abord le tableau pour obtenir une colonne par visite.",
+                    "Les colonnes avec uniquement des 0 ou des 1 mais moins de 5 données valides sont exclues — vérifiez les valeurs manquantes.",
+                    "Téléchargez l'exemple CSV (colonnes V1, V2, V3…) pour voir la structure attendue.",
+                ],
             )
             return
         with left:
