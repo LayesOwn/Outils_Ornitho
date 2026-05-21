@@ -205,13 +205,58 @@ def apply_global_style() -> None:
     }
     div[data-testid="stDataFrame"] { background: var(--orni-panel-soft); }
 
-    /* ── Inputs ── */
+    /* ── Inputs & Select (trigger) ── */
     div[data-baseweb="select"] > div,
     div[data-baseweb="input"] > div,
     input, textarea {
-        background: var(--orni-panel-soft) !important;
+        background: #0e1a12 !important;
         border-color: var(--orni-line) !important;
-        color: var(--orni-ink) !important;
+        color: #f0f7f4 !important;
+    }
+    /* Texte affiché dans le trigger du selectbox */
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div[class*="placeholder"],
+    div[data-baseweb="select"] div[class*="singleValue"] {
+        color: #f0f7f4 !important;
+    }
+    /* ── Dropdown popup (liste déroulante) ── */
+    div[data-baseweb="popover"],
+    div[data-baseweb="menu"],
+    ul[role="listbox"] {
+        background-color: #0e1a12 !important;
+        border: 1px solid #2a4a35 !important;
+        border-radius: 8px !important;
+    }
+    /* Chaque option dans la liste */
+    li[role="option"],
+    div[data-baseweb="menu"] li,
+    ul[role="listbox"] li {
+        background-color: #0e1a12 !important;
+        color: #f0f7f4 !important;
+    }
+    /* Option survolée */
+    li[role="option"]:hover,
+    li[role="option"][aria-selected="true"],
+    div[data-baseweb="menu"] li:hover {
+        background-color: #1e3d28 !important;
+        color: #39d98a !important;
+        cursor: pointer;
+    }
+    /* Option sélectionnée (active) */
+    li[aria-selected="true"] {
+        background-color: #163322 !important;
+        color: #39d98a !important;
+        font-weight: 600;
+    }
+    /* Multiselect tags */
+    div[data-baseweb="tag"] {
+        background-color: #1e3d28 !important;
+        color: #39d98a !important;
+    }
+    /* Number input */
+    input[type="number"] {
+        background: #0e1a12 !important;
+        color: #f0f7f4 !important;
     }
     .stSlider [data-baseweb="slider"] div { color: var(--orni-green); }
 
