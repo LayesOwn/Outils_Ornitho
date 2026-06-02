@@ -7,7 +7,20 @@ import streamlit as st
 from scipy.optimize import minimize
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def simulate_detection_history(n_sites: int, n_visits: int, psi: float, p: float, seed: int) -> np.ndarray:
@@ -57,6 +70,15 @@ def render(context: dict) -> None:
         "Un modèle d'occupation estime la probabilité qu'un site soit occupé (ψ) et la probabilité de détecter l'espèce lors d'une visite (p), séparément.",
         "Sans corriger la détectabilité, l'occupation naïve sous-estime l'occupation réelle : une absence d'observation n'est pas une absence de l'espèce.",
         "En ornithologie, c'est fondamental pour les espèces discrètes : pics, rapaces nocturnes, passereaux forestiers ou espèces à faible taux de détection.",
+    )
+    teacher_objectives(
+        [
+            "Comprendre que « non détecté » ≠ « absent » : la détection est imparfaite (p < 1).",
+            "Séparer la probabilité d'occupation ψ de la probabilité de détection p grâce aux visites répétées.",
+            "Mesurer le biais de l'occupation naïve (proportion de sites où l'espèce a été vue) et son lien avec p et le nombre de visites K.",
+            "Savoir qu'il faut ≥ 3 visites quand p est faible pour que le modèle soit identifiable.",
+        ],
+        context,
     )
 
     left, right = st.columns([0.9, 1.55])
@@ -190,6 +212,17 @@ def render(context: dict) -> None:
         "Plus p est faible ou K est petit, plus le biais de l'occupation naïve est grand.",
         "Le modèle suppose une population fermée entre visites et une détection indépendante d'un site à l'autre.",
         None if psi_true is None else "Réduis le nombre de visites à 1 : le modèle peut-il encore distinguer ψ de p ?",
+    )
+    teacher_summary(
+        [
+            "Deux paramètres distincts : <strong>ψ</strong> (probabilité qu'un site soit occupé) et <strong>p</strong> (probabilité de détecter l'espèce si présente).",
+            "L'<strong>occupation naïve</strong> (sites où vu / sites totaux) sous-estime ψ d'autant plus que p est faible.",
+            "Les <strong>visites répétées</strong> (K ≥ 3) sur les mêmes sites permettent de séparer ψ et p par maximum de vraisemblance.",
+            "Hypothèse de fermeture entre visites ; p dépend de la saison, météo, observateur — d'où l'intérêt d'intégrer des covariables (ψ ~ habitat, p ~ effort).",
+            "Même famille de méthodes que le distance sampling : corriger la <strong>détection imparfaite</strong> plutôt que la nier.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 6 : Méthodes d'estimation (détection imparfaite)",
     )
 
     pdf_lines = [

@@ -7,7 +7,19 @@ import streamlit as st
 from scipy import stats
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def simulate_population_series(n_years: int, n0: int, trend_r: float, sd_noise: float, seed: int) -> pd.DataFrame:
@@ -48,6 +60,15 @@ def render(context: dict) -> None:
         "Une série temporelle de population suit l'évolution de l'abondance d'une espèce sur plusieurs années consécutives.",
         "Elle sert à détecter des déclins ou des reprises, à évaluer l'efficacité d'une mesure de conservation et à produire une alerte précoce.",
         "En ornithologie, les programmes STOC, BBS ou LPO produisent ces séries ; distinguer la tendance du bruit de comptage est indispensable.",
+    )
+    teacher_objectives(
+        [
+            "Distinguer la tendance de fond du bruit d'échantillonnage interannuel.",
+            "Comparer une régression OLS (déclin linéaire de l'effectif) à une régression sur log (taux de changement constant, plus proche du r biologique).",
+            "Utiliser le test de Mann-Kendall (non paramétrique, robuste) pour détecter une tendance monotone significative.",
+            "Relier un taux de déclin annuel au temps de demi-vie (t½ = ln 2 / |r|) et aux critères de déclin de la Liste Rouge UICN.",
+        ],
+        context,
     )
 
     left, right = st.columns([0.9, 1.55])
@@ -148,10 +169,31 @@ def render(context: dict) -> None:
         "robuste aux valeurs aberrantes et aux distributions non normales.",
         context,
     )
+    teacher_pitfalls(
+        [
+            "Conclure à un déclin sur une série trop courte : la variabilité interannuelle peut masquer ou imiter une tendance.",
+            "Appliquer une OLS sur l'effectif brut alors que la dynamique est multiplicative : préférer le log si le taux est ~constant.",
+            "Confondre absence de tendance significative (p ≥ 0,05) et stabilité prouvée — souvent un manque de puissance.",
+            "Oublier que Mann-Kendall détecte une tendance mais ne localise pas la rupture (utiliser Pettitt/CUSUM pour cela).",
+            "Comparer des séries issues de protocoles ou d'efforts différents sans correction de l'effort d'observation.",
+        ],
+        context,
+    )
     learning_notes(
         "Un déclin de 3 % par an donne une réduction de 50 % en 23 ans.",
         "Mann-Kendall ne localise pas la rupture ; pour détecter quand le changement a commencé, utiliser un test de rupture (Pettitt, CUSUM).",
         None if is_data else "Augmente la variabilité interannuelle : à partir de quel CV le déclin simulé n'est-il plus détectable ?",
+    )
+    teacher_summary(
+        [
+            "Une série temporelle sépare la <strong>tendance</strong> (signal) du <strong>bruit de comptage</strong> interannuel.",
+            "<strong>OLS</strong> = déclin linéaire de l'effectif ; <strong>régression sur log</strong> = taux de changement constant (cohérent avec un r biologique, λ = eᵖᵉⁿᵗᵉ).",
+            "<strong>Mann-Kendall</strong> : test non paramétrique d'une tendance monotone, robuste aux outliers et à la non-normalité.",
+            "Lien gestion : un taux annuel se traduit en temps de demi-vie t½ = ln 2 / |r| et alimente les <strong>critères de déclin UICN</strong>.",
+            "Ces suivis longs (STOC, Wetlands International) sont la matière première des diagnostics démographiques et des PVA.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 1 & 7 (tendances de population)",
     )
 
     with st.expander("Voir la série complète"):

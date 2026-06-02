@@ -8,7 +8,18 @@ import streamlit as st
 from scipy.integrate import solve_ivp
 
 from core.export import build_pdf_report
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def lotka_volterra_system(_t: float, state: list[float], alpha: float, beta: float, delta: float, gamma: float) -> list[float]:
@@ -49,6 +60,16 @@ def render(context: dict) -> None:
         "Le modèle de Lotka-Volterra décrit les interactions cycliques entre une population de proies et une population de prédateurs.",
         "Il sert à comprendre comment la prédation peut produire des oscillations, des retards de réponse et des équilibres dynamiques.",
         "En ornithologie, il aide à explorer les relations entre oiseaux proies et rapaces, ou entre oiseaux insectivores et ressources alimentaires saisonnières.",
+    )
+    teacher_objectives(
+        [
+            "Écrire et interpréter le système couplé proie-prédateur (dN/dt = rN − aNP ; dP/dt = −mP + eaNP).",
+            "Calculer le point d'équilibre N* = m/(ea), P* = r/a et reconnaître le « paradoxe de Volterra ».",
+            "Lire un portrait de phase et des isoclines, et comprendre que l'équilibre est un centre conservatif (oscillations neutres).",
+            "Distinguer les trois réponses fonctionnelles de Holling (I linéaire, II saturée déstabilisante, III sigmoïde stabilisante).",
+            "Identifier les limites du modèle (pas de K pour les proies, prédateur monophage, taux de prédation linéaire).",
+        ],
+        context,
     )
     left, right = st.columns([0.85, 1.55])
     with left:
@@ -125,6 +146,17 @@ def render(context: dict) -> None:
             "Interpréter le portrait de phase comme une spirale convergente : c'est une ellipse fermée (conservatif), pas un attracteur.",
         ],
         context,
+    )
+    teacher_summary(
+        [
+            "Système couplé : proies (dN/dt = rN − aNP) et prédateurs (dP/dt = −mP + eaNP) ; le terme <strong>aNP</strong> = rencontres aléatoires (action de masse).",
+            "Équilibre : <strong>N* = m/(ea)</strong>, <strong>P* = r/a</strong> ; surprenant, N* ne dépend pas de r (paradoxe de Volterra).",
+            "Les populations <strong>oscillent</strong> avec un déphasage d'un quart de période (le pic de prédateurs suit celui des proies).",
+            "Équilibre = <strong>centre neutre</strong> : l'amplitude dépend des conditions initiales, sans amortissement.",
+            "Réponse de Holling : <strong>II</strong> (saturation) déstabilise les petites populations de proies ; <strong>III</strong> (refuge à faible densité) les stabilise.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 5 : Interactions interspécifiques",
     )
 
     pdf = build_pdf_report(

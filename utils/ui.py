@@ -407,6 +407,40 @@ def apply_global_style() -> None:
         color: #4dabf7; font-weight: 700; font-size: 0.78rem;
         letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.4rem;
     }
+    /* Objectifs pédagogiques (mode enseignant) */
+    .orni-teacher-objectives {
+        background: linear-gradient(135deg, rgba(177,151,252,0.10), rgba(77,171,247,0.05));
+        border: 1px solid rgba(177,151,252,0.38);
+        border-left: 4px solid #b197fc;
+        border-radius: 8px;
+        padding: 0.85rem 1.1rem;
+        margin: 0.8rem 0;
+    }
+    .orni-teacher-objectives-header {
+        color: #b197fc; font-weight: 700; font-size: 0.78rem;
+        letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.45rem;
+    }
+    .orni-teacher-objectives ul { color: #e4ecf4; margin: 0; padding-left: 1.3rem; }
+    .orni-teacher-objectives li { font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.25rem; }
+    /* Synthèse / résumé de fin de page (mode enseignant) */
+    .orni-teacher-summary {
+        background: linear-gradient(135deg, rgba(57,217,138,0.12), rgba(32,178,107,0.04));
+        border: 1px solid rgba(57,217,138,0.38);
+        border-left: 4px solid #39d98a;
+        border-radius: 8px;
+        padding: 0.9rem 1.15rem;
+        margin: 1rem 0 0.4rem 0;
+    }
+    .orni-teacher-summary-header {
+        color: #39d98a; font-weight: 700; font-size: 0.8rem;
+        letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.5rem;
+    }
+    .orni-teacher-summary ul { color: #e4ecf4; margin: 0; padding-left: 1.3rem; }
+    .orni-teacher-summary li { font-size: 0.91rem; line-height: 1.65; margin-bottom: 0.3rem; }
+    .orni-teacher-summary .orni-summary-ref {
+        display: block; margin-top: 0.55rem; font-size: 0.76rem;
+        color: #5a8a6a; font-style: italic;
+    }
 
     /* ── Profil auteur ── */
     .orni-author-card {
@@ -694,6 +728,44 @@ def teacher_pitfalls(items: list[str], context: dict) -> None:
             f'<div class="orni-teacher-pitfalls">'
             f'<div class="orni-teacher-pitfalls-header">⚠️ Erreurs fréquentes</div>'
             f'<ul>{li}</ul>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def teacher_objectives(items: list[str], context: dict) -> None:
+    """Objectifs pédagogiques du module — visibles uniquement en mode Enseignant.
+
+    À placer en haut du module (juste après module_intro) pour annoncer
+    ce que l'étudiant doit savoir faire à l'issue de la séance.
+    """
+    if context.get("is_teacher"):
+        li = "".join(f"<li>{item}</li>" for item in items)
+        st.markdown(
+            f'<div class="orni-teacher-objectives">'
+            f'<div class="orni-teacher-objectives-header">🎯 Objectifs pédagogiques</div>'
+            f'<ul>{li}</ul>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def teacher_summary(points: list[str], context: dict, reference: str | None = None) -> None:
+    """Synthèse de fin de page — visible uniquement en mode Enseignant.
+
+    À placer en bas du module pour récapituler les notions clés du cours.
+    `reference` cite le chapitre source (ex. "ORNI 422 — Chap. 4 : Matrices de Leslie").
+    """
+    if context.get("is_teacher"):
+        li = "".join(f"<li>{p}</li>" for p in points)
+        ref = (
+            f'<span class="orni-summary-ref">📖 Référence cours : {reference}</span>'
+            if reference else ""
+        )
+        st.markdown(
+            f'<div class="orni-teacher-summary">'
+            f'<div class="orni-teacher-summary-header">📚 Synthèse à retenir</div>'
+            f'<ul>{li}</ul>{ref}'
             f'</div>',
             unsafe_allow_html=True,
         )

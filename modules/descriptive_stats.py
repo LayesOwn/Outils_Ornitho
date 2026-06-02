@@ -6,7 +6,20 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def generate_counts(seed: int, sites: int, mean_count: int, dispersion: float) -> pd.DataFrame:
@@ -28,6 +41,15 @@ def render(context: dict) -> None:
         "Les statistiques descriptives résument un jeu de données avec des indicateurs de tendance centrale (moyenne, médiane) et de dispersion (écart-type, IQR, CV). Elles s'appliquent aux variables quantitatives continues (masse, taille d'aile) ou discrètes (abondance).",
         "Elles servent à comprendre la structure d'un jeu de données avant tout test ou modèle : identifier la forme de la distribution, repérer les valeurs aberrantes et choisir les bons indicateurs.",
         "En ornithologie, elles permettent de résumer des abondances par point d'écoute, des masses corporelles, des richesses spécifiques ou des succès reproducteurs, et de détecter des sites atypiques.",
+    )
+    teacher_objectives(
+        [
+            "Distinguer le type de variable (qualitative nominale/ordinale, quantitative discrète/continue) car il conditionne calculs et graphiques.",
+            "Calculer et interpréter les paramètres de tendance centrale (mode, médiane, moyenne) et de dispersion (étendue, IQR, variance, écart-type, CV).",
+            "Comparer moyenne et médiane comme premier diagnostic de symétrie, avant tout test de normalité.",
+            "Détecter les valeurs aberrantes par la règle de Tukey (Q1 − 1,5·IQR ; Q3 + 1,5·IQR) et choisir le graphique adapté (boxplot en priorité).",
+        ],
+        context,
     )
 
     left, right = st.columns([0.85, 1.55])
@@ -118,6 +140,28 @@ def render(context: dict) -> None:
         f"L'IQR = {iqr:.1f} représente l'étendue des 50 % centraux des valeurs."
     )
 
+    teacher_note(
+        "La <strong>variance d'échantillon</strong> divise par (n − 1) — correction de Bessel : la moyenne consomme "
+        "1 degré de liberté, donc l'échantillon n'a que (n − 1) écarts libres. Diviser par n sous-estimerait la dispersion. "
+        "L'écart-type (√variance) a la même unité que les données, contrairement à la variance (unité²). "
+        "Le CV, sans unité, permet de comparer la variabilité de mesures d'unités différentes (poids en g vs bec en mm).",
+        context,
+    )
+    teacher_formula(
+        "Variance d'échantillon (Bessel) et coefficient de variation",
+        r"s^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2 \qquad CV = \frac{s}{\bar{x}}\times 100",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Utiliser la moyenne sur des comptages fortement asymétriques : quelques sites très riches la tirent vers le haut. Préférer la médiane (robuste aux outliers).",
+            "Confondre variance de population (÷ N) et variance d'échantillon (÷ n−1) : R/numpy utilisent par défaut n−1.",
+            "Interpréter un CV sans regarder la moyenne : un CV élevé sur une très petite moyenne peut être trompeur.",
+            "Conclure sur la dispersion sans visualiser la distribution (histogramme + boxplot).",
+        ],
+        context,
+    )
+
     lower_fence = q1 - 1.5 * iqr
     upper_fence = q3 + 1.5 * iqr
     outliers = data["Abondance"][(data["Abondance"] < lower_fence) | (data["Abondance"] > upper_fence)]
@@ -167,6 +211,18 @@ def render(context: dict) -> None:
         "Toujours examiner la distribution (histogramme + boxplot) et comparer moyenne/médiane avant de conclure. Calculer le CV pour évaluer l'homogénéité entre sites.",
         "La moyenne est sensible aux valeurs aberrantes. Sur des comptages d'oiseaux, la distribution est souvent asymétrique à droite — la médiane est alors plus représentative.",
         None if is_data else "Augmente l'agrégation spatiale et observe comment la moyenne, la médiane et le CV évoluent. À partir de quel CV parle-t-on de forte hétérogénéité ?",
+    )
+
+    teacher_summary(
+        [
+            "Le <strong>type de variable</strong> détermine les outils : qualitatif → effectifs/fréquences/barres ; quantitatif → moyenne/variance/histogramme/boxplot.",
+            "Tendance centrale : <strong>mode</strong> (le plus fréquent), <strong>médiane</strong> (robuste), <strong>moyenne</strong> (sensible aux extrêmes).",
+            "Dispersion : étendue (très sensible), <strong>IQR = Q3 − Q1</strong> (robuste), variance/écart-type (sensibles), <strong>CV</strong> (sans unité, comparable).",
+            "Moyenne vs médiane = diagnostic rapide de symétrie ; outliers via la règle <strong>1,5 × IQR</strong> (Tukey).",
+            "Réflexe : identifier le type → calculer position et dispersion → comparer moyenne/médiane → visualiser → détecter les anomalies.",
+        ],
+        context,
+        reference="ORNI 421 — Chap. 1 : Statistique descriptive",
     )
 
     with st.expander("Données et résumé par habitat"):

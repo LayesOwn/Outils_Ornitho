@@ -8,7 +8,20 @@ from scipy import stats
 from scipy.optimize import curve_fit
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def simulate_growth(n0: float, r: float, k: float, years: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -74,6 +87,16 @@ def render(context: dict) -> None:
         "Le modèle exponentiel suppose une croissance sans limite, alors que le modèle logistique ajoute une capacité de charge K.",
         "Ils servent à comparer des scénarios simples de croissance, de déclin ou de stabilisation et à comprendre le rôle de la densité-dépendance.",
         "En ornithologie, ils aident à interpréter l'évolution d'une colonie, l'effet d'un habitat limité ou le potentiel de récupération après une perturbation.",
+    )
+    teacher_objectives(
+        [
+            "Maîtriser les formes différentielle (dN/dt) et intégrée (N(t)) des modèles exponentiel (Malthus) et logistique (Verhulst).",
+            "Interpréter r (taux intrinsèque), λ = eʳ (taux fini) et le temps de doublement t₂ = ln(2)/r.",
+            "Comprendre la capacité de charge K et la régulation densité-dépendante par le facteur de freinage (1 − N/K).",
+            "Relier le point d'inflexion N = K/2 au rendement maximal durable MSY = rK/4 (gestion des espèces exploitées).",
+            "Identifier l'effet Allee et le danger spécifique aux petites populations sous un seuil critique A.",
+        ],
+        context,
     )
     col_controls, col_plot = st.columns([0.9, 1.6])
 
@@ -272,6 +295,17 @@ def render(context: dict) -> None:
             "Négliger l'effet Allee dans les petites populations fragmentées : le modèle logistique simple prédit une récupération même à N très faible, ce qui surestime la résilience.",
         ],
         context,
+    )
+    teacher_summary(
+        [
+            "<strong>Exponentiel</strong> (dN/dt = rN → N(t) = N₀eʳᵗ) : ressources illimitées, courbe en J ; valable seulement à court terme (N ≪ K).",
+            "<strong>Logistique</strong> (dN/dt = rN(1 − N/K)) : capacité de charge K, courbe sigmoïde ; le freinage (1 − N/K) ralentit la croissance près de K.",
+            "Liens clés : <strong>λ = eʳ</strong>, temps de doublement <strong>t₂ = ln(2)/r</strong>.",
+            "Point d'inflexion à <strong>N = K/2</strong> : croissance maximale → <strong>MSY = rK/4</strong> (prélèvement durable, appliquer 50–75 % par précaution).",
+            "<strong>Effet Allee</strong> : sous un seuil A, dN/dt &lt; 0 → spirale d'extinction même sans surexploitation (petites populations).",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 3 : Modèles de croissance",
     )
 
     pdf = build_pdf_report("ORNI-LAB - Croissance", pdf_lines)

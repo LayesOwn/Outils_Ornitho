@@ -8,7 +8,19 @@ import streamlit as st
 from scipy import stats
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def generate_two_groups(seed: int, n_a: int, n_b: int, mean_a: float, mean_b: float, sd: float) -> pd.DataFrame:
@@ -65,6 +77,16 @@ def render(context: dict) -> None:
         "Un test statistique évalue si une différence observée entre groupes est compatible avec le hasard (H₀) ou si elle est trop grande pour être due au seul hasard (H₁). Il produit une p-value : probabilité d'obtenir un écart au moins aussi grand si H₀ était vraie.",
         "Il sert à formaliser une comparaison tout en maîtrisant le risque de se tromper : risque α (faux positif, seuil = 0,05) et risque β (faux négatif). La normalité des données détermine le choix du test.",
         "En ornithologie, il permet de comparer le succès reproducteur entre habitats, l'abondance selon les années, ou l'effet d'une mesure de conservation — en distinguant une vraie différence biologique du bruit d'échantillonnage.",
+    )
+    teacher_objectives(
+        [
+            "Formuler H₀ (« pas de différence ») et H₁ AVANT de calculer, et fixer le seuil α (typiquement 0,05).",
+            "Distinguer erreur de type I (α, faux positif) et de type II (β, faux négatif), et comprendre la puissance 1 − β.",
+            "Vérifier les conditions d'application (normalité par Shapiro-Wilk, homogénéité des variances) pour choisir entre test paramétrique et non paramétrique.",
+            "Naviguer dans l'arbre de décision : nb de groupes × type de variable × conditions remplies → bon test (t, ANOVA, Khi², Mann-Whitney, Kruskal-Wallis).",
+            "Interpréter conjointement la p-value ET la taille d'effet (significatif ≠ important).",
+        ],
+        context,
     )
 
     left, right = st.columns([0.9, 1.5])
@@ -462,4 +484,25 @@ def render(context: dict) -> None:
         "Démarche : (1) Poser H₀/H₁, (2) Vérifier la normalité (Shapiro-Wilk), (3) Choisir le test, (4) Interpréter p-value ET taille d'effet.",
         "Une p-value significative ne prouve pas une importance biologique — un grand n peut rendre significative une différence négligeable. Toujours rapporter d ou η².",
         None if is_data else "Réduis le n progressivement : à partir de quel seuil la conclusion change-t-elle ?",
+    )
+    teacher_pitfalls(
+        [
+            "Choisir le test APRÈS avoir vu les données (« p-hacking ») : H₀/H₁ et α se fixent avant la collecte.",
+            "Appliquer un t-test/ANOVA sans vérifier normalité et homogénéité des variances (Bartlett/Levene).",
+            "Interpréter p ≥ 0,05 comme « preuve d'absence d'effet » : c'est une absence de preuve, souvent par manque de puissance (n trop petit).",
+            "Oublier le test post-hoc (Tukey, pairwise) après une ANOVA/Kruskal-Wallis significative : le test global ne dit PAS quels groupes diffèrent.",
+            "Pour le Khi², ignorer la condition « tous les effectifs théoriques ≥ 5 » (sinon test exact de Fisher).",
+        ],
+        context,
+    )
+    teacher_summary(
+        [
+            "Tout test confronte <strong>H₀ (pas d'effet)</strong> à <strong>H₁</strong> ; la <strong>p-value</strong> = P(écart ≥ observé | H₀). Si p &lt; α (0,05) → on rejette H₀.",
+            "Deux risques : <strong>α</strong> (type I, faux positif) et <strong>β</strong> (type II, faux négatif) ; puissance = 1 − β. Augmenter n améliore les deux.",
+            "Arbre de décision : <strong>2 groupes</strong> → t-test (Welch) / Mann-Whitney ; <strong>k ≥ 3</strong> → ANOVA + Tukey / Kruskal-Wallis ; <strong>2 variables qualitatives</strong> → Khi² / Fisher.",
+            "Paramétrique si normalité + variances homogènes ; sinon équivalent non paramétrique (sur les rangs).",
+            "Réflexe final : rapporter statistique de test, ddl, p-value <em>et</em> taille d'effet — significatif ≠ important.",
+        ],
+        context,
+        reference="ORNI 421 — Chap. 3 : Tests statistiques",
     )

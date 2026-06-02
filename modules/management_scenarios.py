@@ -12,7 +12,18 @@ except ImportError as _pva_err:
     _PVA_IMPORT_ERROR = str(_pva_err)
 else:
     _PVA_IMPORT_ERROR = ""
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 @st.cache_data
@@ -40,6 +51,15 @@ def render(context: dict) -> None:
         "Un scénario de gestion est une hypothèse d'action : restaurer l'habitat, réduire la mortalité ou combiner plusieurs mesures.",
         "Comparer les scénarios aide à choisir les actions qui réduisent le plus le risque pour un coût écologique ou opérationnel donné.",
         "En ornithologie, cette approche soutient les plans d'action pour colonies nicheuses, espèces menacées ou sites de migration.",
+    )
+    teacher_objectives(
+        [
+            "Comparer plusieurs actions de gestion sur la même population plutôt que raisonner sur un seul futur.",
+            "Relier chaque action à un paramètre démographique : restauration → K, réduction de mortalité → survie/pertes, action combinée.",
+            "Utiliser le continuum slow-fast pour anticiper le levier efficace : survie adulte (espèces lentes) vs fécondité (espèces rapides).",
+            "Appliquer le principe de précaution (ne prélever que 50–75 % du MSY) et la gestion adaptative (réviser les quotas selon le suivi).",
+        ],
+        context,
     )
 
     left, right = st.columns([0.75, 1.6])
@@ -101,6 +121,17 @@ def render(context: dict) -> None:
         "Comparer plusieurs actions évite de raisonner sur un seul futur possible.",
         "Le résultat dépend des hypothèses ; il faut les justifier avec des données de terrain.",
         "Compare la restauration seule et l'action combinée : que gagne-t-on réellement ?",
+    )
+    teacher_summary(
+        [
+            "Une bonne gestion repose sur la <strong>comparaison de scénarios</strong> (avec/sans action) via la PVA, pas sur une intuition unique.",
+            "Espèces exploitées : viser le <strong>surplus durable</strong> (MSY = rK/4 à N = K/2), prélever 50–75 % par précaution.",
+            "Espèces menacées : l'objectif est la <strong>viabilité</strong> ; identifier le paramètre limitant par l'élasticité (Leslie) puis cibler l'action.",
+            "<strong>Continuum slow-fast</strong> : les espèces les plus menacées (albatros, vautours, flamants) sont « lentes » → priorité à la survie adulte.",
+            "<strong>Gestion adaptative</strong> : ajuster les actions et quotas chaque année selon les résultats du suivi démographique.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 7 : Conservation et gestion",
     )
     display = results.copy()
     display["Risque quasi-extinction"] = display["Risque quasi-extinction"].map(lambda v: f"{100 * v:.1f} %")

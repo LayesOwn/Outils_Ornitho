@@ -9,7 +9,20 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import CMR_SCENARIOS
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def lincoln_petersen(marked: int, captured: int, recaptured: int) -> tuple[float, float, float]:
@@ -35,6 +48,16 @@ def render(context: dict) -> None:
         "La capture-marquage-recapture estime la taille d'une population à partir du nombre d'individus marqués puis retrouvés lors d'une seconde capture.",
         "Elle est utilisée quand il est impossible de compter tous les individus directement, notamment dans des populations mobiles ou partiellement détectables.",
         "Pour les oiseaux, elle sert à estimer l'abondance, la survie apparente, la fidélité au site et la dynamique de populations baguées.",
+    )
+    teacher_objectives(
+        [
+            "Appliquer l'estimateur de Lincoln-Petersen N̂ = M·C/R et savoir quand préférer la correction de Chapman (R faible).",
+            "Calculer l'intervalle de confiance et relier sa largeur au taux de recapture.",
+            "Énoncer et vérifier les 4 hypothèses (population fermée, mélange homogène, marques permanentes, captures équiprobables).",
+            "Distinguer populations fermées (Lincoln-Petersen, Chapman, Schnabel) et ouvertes (Jolly-Seber, CJS, robust design de Pollock).",
+            "Comprendre que le CJS estime une survie apparente φ (survie × fidélité au site), pas la survie vraie.",
+        ],
+        context,
     )
 
     if is_data:
@@ -233,6 +256,17 @@ def render(context: dict) -> None:
             "Croire que le taux de recapture observé (R/C) est la probabilité de recapture p : ils coïncident seulement si toutes les hypothèses sont vérifiées.",
         ],
         context,
+    )
+    teacher_summary(
+        [
+            "Principe : la proportion de marqués dans la recapture reflète celle de la population → <strong>M/N = R/C</strong> ⇒ N̂ = M·C/R.",
+            "Toujours préférer la <strong>correction de Chapman</strong> N̂ = (M+1)(C+1)/(R+1) − 1 (sans biais, surtout si R &lt; 10).",
+            "La précision dépend du <strong>taux de recapture</strong> : R faible → IC très large.",
+            "4 hypothèses du modèle fermé ; leur violation (population ouverte, perte de bagues, trap-happiness) biaise N̂.",
+            "Population ouverte → <strong>CJS</strong> (survie apparente φ et p) ; <strong>Jolly-Seber</strong> ajoute N ; <strong>robust design</strong> estime N, φ et l'émigration temporaire.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 6 : Méthodes d'estimation (CMR)",
     )
 
     pdf = build_pdf_report("ORNI-LAB - Capture-Marquage-Recapture", pdf_lines)

@@ -8,7 +8,20 @@ from scipy.optimize import minimize_scalar
 from scipy.special import erf, erfinv
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def _effective_strip_width(sigma: float, strip_width: float) -> float:
@@ -60,6 +73,16 @@ def render(context: dict) -> None:
         "Le distance sampling estime la densité animale en modélisant la chute de détection avec la distance à l'observateur.",
         "Il corrige le biais de détection sans visites répétées : la distribution des distances observées révèle la détectabilité.",
         "En ornithologie, il est utilisé pour les transects linéaires et les points fixes pour les espèces chantant peu ou détectées à distance variable.",
+    )
+    teacher_objectives(
+        [
+            "Comprendre pourquoi la probabilité de détection chute avec la distance et comment cela biaise un comptage brut.",
+            "Énoncer l'hypothèse fondamentale g(0) = 1 (détection parfaite sur la ligne / au point).",
+            "Ajuster une fonction de détection (demi-normale) et en déduire l'ESW (transect) ou l'EDR (point fixe).",
+            "Estimer la densité D̂ = n / (2·L·ESW) en corrigeant la détection imparfaite.",
+            "Distinguer le distance sampling (densité, non invasif) de la CMR (abondance/survie, capture).",
+        ],
+        context,
     )
 
     left, right = st.columns([0.9, 1.55])
@@ -188,6 +211,17 @@ def render(context: dict) -> None:
         "L'ESW est le cœur du distance sampling : elle convertit des comptages en surface effectivement couverte.",
         "La fonction demi-normale suppose une détection parfaite à distance 0. D'autres fonctions (hazard-rate) peuvent mieux s'ajuster.",
         None if is_data else "Réduis σ à 20 m et W à 100 m : que se passe-t-il sur le nombre de détections et la précision de l'estimation ?",
+    )
+    teacher_summary(
+        [
+            "Idée centrale : la probabilité de détection <strong>décroît avec la distance</strong> ; on modélise g(y) pour corriger le comptage.",
+            "Hypothèse clé : <strong>g(0) = 1</strong> (détection certaine sur la ligne ou au point d'écoute).",
+            "L'<strong>ESW</strong> (transect) / <strong>EDR</strong> (point) résume la fonction de détection en une bande/un rayon « effectif ».",
+            "Densité : <strong>D̂ = n / (2·L·ESW)</strong> (transect) ou D̂ = n / (k·π·EDR²) (points d'écoute).",
+            "Avantages : non invasif, corrige la détectabilité ; limites : ≥ 60–80 détections, distances précises, g(0)=1 parfois irréaliste.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 6 : Méthodes d'estimation (Distance sampling)",
     )
 
     dist_df = pd.DataFrame({"Distance_m": distances.round(1)})

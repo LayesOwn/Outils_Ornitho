@@ -8,7 +8,18 @@ import streamlit as st
 
 from core.export import build_pdf_report
 from data.examples import default_leslie_values
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def build_leslie_matrix(fecundity: list[float], survival: list[float]) -> np.ndarray:
@@ -89,6 +100,16 @@ def render(context: dict) -> None:
         "Une matrice de Leslie projette une population divisée en classes d'âge à partir des fécondités et des probabilités de survie.",
         "Elle permet d'identifier les classes d'âge qui contribuent le plus à la croissance ou au déclin, via l'analyse de sensibilité et d'élasticité.",
         "Indispensable pour cibler les actions de conservation : faut-il améliorer la survie juvénile, la survie adulte ou le succès reproducteur ?",
+    )
+    teacher_objectives(
+        [
+            "Construire une matrice de Leslie à partir d'une table de vie (fécondités en 1ʳᵉ ligne, survies sur la sous-diagonale).",
+            "Projeter une population structurée par âge via le produit matrice-vecteur n(t+1) = L·n(t).",
+            "Interpréter la valeur propre dominante λ₁ (taux asymptotique, r = ln λ₁), la distribution d'âge stable et la valeur reproductive.",
+            "Réaliser une analyse de sensibilité et d'élasticité pour identifier le paramètre vital à protéger en priorité.",
+            "Relier l'élasticité au continuum slow-fast : survie adulte chez les espèces longévives, fécondité chez les espèces à vie courte.",
+        ],
+        context,
     )
     fecundity, survival, initial = default_leslie_values()
     class_labels = ["Juvéniles", "1 an", "2 ans", "3 ans et +"]
@@ -290,6 +311,17 @@ def render(context: dict) -> None:
         "λ > 1 : croissance. λ < 1 : déclin. L'élasticité identifie quel paramètre démographique protéger en priorité.",
         "Le modèle suppose fécondités et survies constantes dans le temps — pas de saisonnalité, ni de catastrophes.",
         "Compare l'élasticité de la survie adulte et du succès reproducteur : lequel contrôle le plus λ ?",
+    )
+    teacher_summary(
+        [
+            "La matrice de Leslie combine table de vie (Chap. 2) et dynamique temporelle : <strong>n(t+1) = L·n(t)</strong>.",
+            "<strong>λ₁</strong> (valeur propre dominante, Perron-Frobenius) = taux de croissance asymptotique ; λ₁ > 1 croît, &lt; 1 décline ; <strong>r = ln λ₁</strong>.",
+            "Vecteur propre droit → <strong>distribution d'âge stable</strong> ; vecteur propre gauche → <strong>valeur reproductive</strong> de chaque classe.",
+            "<strong>Sensibilité</strong> (Δλ pour Δa absolu) vs <strong>élasticité</strong> (Δλ/λ pour Δa/a relatif, Σe = 1 → comparable) : l'élasticité hiérarchise les actions de conservation.",
+            "Espèces longévives (albatros, vautours) → élasticité dominée par la <strong>survie adulte</strong> ; espèces à vie courte (passereaux) → par la <strong>fécondité</strong>.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 4 : Matrices de Leslie",
     )
 
     elas_flat = {

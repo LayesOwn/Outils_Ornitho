@@ -7,7 +7,20 @@ import plotly.express as px
 import streamlit as st
 
 from core.export import build_pdf_report
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def compute_diversity_indices(counts: np.ndarray) -> dict[str, float]:
@@ -66,6 +79,15 @@ def render(context: dict) -> None:
         "Les indices de diversité résument la richesse (nombre d'espèces) et l'équitabilité (répartition des abondances) d'une communauté.",
         "Ils servent à comparer des habitats, à suivre l'effet d'une restauration ou à détecter un appauvrissement biologique au fil du temps.",
         "En ornithologie, ils permettent de comparer des points d'écoute, des sites protégés ou restaurés, des saisons ou des années de suivi.",
+    )
+    teacher_objectives(
+        [
+            "Distinguer la richesse spécifique S (nombre d'espèces) de la diversité qui intègre aussi l'équitabilité des abondances.",
+            "Calculer et interpréter l'indice de Shannon H', l'indice de Simpson D (et 1−D) et l'équitabilité de Pielou J' = H'/ln(S).",
+            "Comprendre pourquoi deux communautés de même richesse peuvent avoir des diversités très différentes selon la dominance.",
+            "Relier la diversité au protocole : ces indices ne sont comparables qu'à effort d'échantillonnage équivalent.",
+        ],
+        context,
     )
 
     left, right = st.columns([0.85, 1.55])
@@ -236,4 +258,15 @@ def render(context: dict) -> None:
         "Shannon H' combine richesse et équitabilité ; une communauté dominée par une seule espèce a un H' bas.",
         "Les indices dépendent de l'effort d'échantillonnage ; comparer uniquement des communautés collectées avec le même protocole.",
         None if is_data else "Réduis le nombre de sites : à partir de combien la richesse estimée se stabilise-t-elle sur la courbe d'accumulation ?",
+    )
+    teacher_summary(
+        [
+            "<strong>Richesse S</strong> = nombre d'espèces ; mesure la plus simple mais ignore les abondances relatives.",
+            "<strong>Shannon H' = −Σ pᵢ ln(pᵢ)</strong> : 0 (une espèce) → ln(S) (équi-répartition) ; combine richesse et équitabilité.",
+            "<strong>Simpson D = Σ pᵢ²</strong> : probabilité que deux individus soient de la même espèce ; on utilise 1−D ou 1/D, plus robuste aux espèces rares.",
+            "<strong>Pielou J' = H'/ln(S)</strong> : équitabilité de 0 (dominance) à 1 (équi-répartition) ; J' > 0,8 = communauté équilibrée.",
+            "Toujours comparer à <strong>effort d'échantillonnage égal</strong> ; la courbe d'accumulation indique si l'inventaire est saturé.",
+        ],
+        context,
+        reference="ORNI 421 — Chap. 4 : Mesures et applications (§5 Diversité)",
     )

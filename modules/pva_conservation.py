@@ -12,7 +12,18 @@ except ImportError as _pva_err:
     _PVA_IMPORT_ERROR = str(_pva_err)
 else:
     _PVA_IMPORT_ERROR = ""
-from utils.ui import explain, learning_notes, module_intro, section, style_figure, teacher_formula, teacher_note, teacher_pitfalls
+from utils.ui import (
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 @st.cache_data
@@ -29,6 +40,16 @@ def render(context: dict) -> None:
         "Une PVA simule de nombreuses trajectoires possibles d'une population afin d'estimer son risque de quasi-extinction.",
         "Elle sert à comparer des scénarios de conservation quand l'avenir est incertain : démographie, habitat, mortalité ou climat.",
         "En ornithologie de conservation, elle aide à prioriser les actions pour les espèces menacées, colonies isolées ou populations réintroduites.",
+    )
+    teacher_objectives(
+        [
+            "Comprendre la logique d'une PVA : simuler des milliers de trajectoires (Monte Carlo) pour estimer une probabilité d'extinction.",
+            "Distinguer les sources de stochasticité : démographique (petites populations), environnementale, catastrophes, génétique.",
+            "Lire le résultat clé : P(extinction) sur l'horizon et l'effet de chaque scénario de gestion.",
+            "Relier la PVA au concept de taille minimale viable (MVP) et aux règles 50/500 puis 100/1000.",
+            "Comprendre que réduire la variance environnementale et les pertes annuelles compte autant que le r moyen.",
+        ],
+        context,
     )
 
     left, right = st.columns([0.9, 1.55])
@@ -106,6 +127,17 @@ def render(context: dict) -> None:
         "Le risque dépend autant de la variance que de la croissance moyenne.",
         "Une PVA simplifiée peut sous-estimer les événements rares, la consanguinité ou les catastrophes.",
         "Teste l'effet d'une baisse des pertes annuelles fixes sur le risque.",
+    )
+    teacher_summary(
+        [
+            "La <strong>PVA</strong> = simulations stochastiques répétées (Monte Carlo) → probabilité d'extinction sur T années et temps moyen avant extinction.",
+            "Quatre stochasticités : <strong>démographique</strong> (forte si N &lt; 50), <strong>environnementale</strong>, <strong>catastrophes</strong>, <strong>génétique</strong>.",
+            "À r moyen égal, augmenter la <strong>variance</strong> augmente le risque : la variabilité réduit toujours la croissance à long terme.",
+            "<strong>MVP</strong> (taille minimale viable) : règles indicatives 50/500 puis révisées 100/1000 ; en dessous → spirale d'extinction (effet Allee, consanguinité).",
+            "Pour les espèces à démographie lente, agir sur la <strong>survie adulte</strong> (cf. élasticité, Leslie) est le levier le plus efficace.",
+        ],
+        context,
+        reference="ORNI 422 — Chap. 7 : Conservation et gestion (PVA, MVP)",
     )
 
     st.download_button("Exporter les trajectoires CSV", data.to_csv(index=False).encode("utf-8"), "orni_lab_pva.csv", "text/csv")

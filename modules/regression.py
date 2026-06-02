@@ -6,7 +6,20 @@ from scipy import stats
 
 from core.export import build_pdf_report
 from data.examples import wing_mass_dataset
-from utils.ui import csv_template_button, data_incompatible, explain, learning_notes, module_intro, section, style_figure, teacher_note
+from utils.ui import (
+    csv_template_button,
+    data_incompatible,
+    explain,
+    learning_notes,
+    module_intro,
+    section,
+    style_figure,
+    teacher_formula,
+    teacher_note,
+    teacher_objectives,
+    teacher_pitfalls,
+    teacher_summary,
+)
 
 
 def render(context: dict) -> None:
@@ -19,6 +32,15 @@ def render(context: dict) -> None:
         "La corrélation mesure l'intensité d'une relation entre deux variables. La régression estime une équation permettant de prédire une variable à partir d'une autre.",
         "Ces outils servent à tester une relation biologique, quantifier sa force et produire une prédiction avec une incertitude.",
         "En ornithologie, ils permettent d'étudier les liens entre morphologie, condition corporelle, climat, habitat, abondance ou succès reproducteur.",
+    )
+    teacher_objectives(
+        [
+            "Différencier covariance (dépend des unités) et corrélation r (standardisée, sans unité, −1 ≤ r ≤ +1).",
+            "Estimer la droite des moindres carrés Y = a + bX et interpréter pente et ordonnée à l'origine.",
+            "Lire le R² comme la part de variance de Y expliquée par X, et la p-value comme la significativité du lien.",
+            "Vérifier les hypothèses par l'analyse des résidus (normalité, homoscédasticité, indépendance) et ne jamais confondre corrélation et causalité.",
+        ],
+        context,
     )
     left, right = st.columns([0.85, 1.6])
 
@@ -180,9 +202,37 @@ def render(context: dict) -> None:
     )
     teacher_note(
         f"Équation ajustée : {y_col} = {intercept:.3g} + {slope:.3g} × {x_col}. "
-        "Faire distinguer corrélation, causalité et qualité prédictive. "
-        "Montrer le calcul de b = Cov(X,Y)/Var(X) et a = ȳ − b×x̄.",
+        "La pente vaut b = Cov(X,Y)/Var(X) et l'ordonnée à l'origine a = ȳ − b·x̄ — la droite "
+        "passe donc <strong>toujours par le point moyen (x̄, ȳ)</strong>. Le coefficient r standardise la "
+        "covariance par le produit des écarts-types : il est sans unité, ce qui le rend comparable entre études, "
+        "contrairement à la covariance. R² = r² est la part de variance de Y expliquée.",
         context,
+    )
+    teacher_formula(
+        "Corrélation de Pearson, pente des moindres carrés et coefficient de détermination",
+        r"r = \frac{\mathrm{Cov}(X,Y)}{s_X\, s_Y} \qquad b = \frac{\mathrm{Cov}(X,Y)}{\mathrm{Var}(X)} \qquad R^2 = r^2",
+        context,
+    )
+    teacher_pitfalls(
+        [
+            "Confondre corrélation et causalité : un r fort peut venir d'une variable confondante (âge, sexe).",
+            "Conclure « pas de relation » sur un r faible alors qu'une relation <strong>non linéaire</strong> existe — r ne mesure que le lien linéaire.",
+            "Oublier d'analyser les résidus : une structure (courbe, entonnoir = hétéroscédasticité) invalide le modèle linéaire.",
+            "Extrapoler hors de la plage de X observée : la droite n'est valide que dans l'intervalle des données.",
+            "En régression multiple : ignorer la multicolinéarité (|r| > 0,8 entre prédicteurs, VIF > 5) qui rend les coefficients instables.",
+        ],
+        context,
+    )
+    teacher_summary(
+        [
+            "<strong>Covariance</strong> : sens de la relation, mais dépend des unités → non comparable.",
+            "<strong>r de Pearson</strong> (−1 à +1) : force + sens, standardisé donc comparable ; <strong>R² = r²</strong> : % de variance expliquée.",
+            "<strong>Régression Y = a + bX</strong> par moindres carrés (b = Cov/Var(X), a = ȳ − b·x̄) ; passe par (x̄, ȳ).",
+            "Toujours : visualiser le nuage → vérifier la linéarité → significativité (p) + taille d'effet (R²) → résidus.",
+            "Spearman si données non normales ou relation monotone non linéaire ; VIF pour la multicolinéarité en régression multiple.",
+        ],
+        context,
+        reference="ORNI 421 — Chap. 2 : Statistique bivariée",
     )
 
     with st.expander("Voir les données"):
